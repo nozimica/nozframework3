@@ -1,38 +1,48 @@
 <?php
-require_once 'DB.php';
 
 class FactoryModel {
     static public function CreateByConfig($modelConf) {
-        if (empty($modelConf)) {
-            return new ModelManager(NULL);
+        $dbObj = null;
+        switch ($modelConf['interface']) {
+          case 'PDO':
+            $dbObj = new PDO($modelConf['dsn']) or die('PDO: Problem with DB.');
+            $dbObj->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
+            break;
+          case 'PEAR::DB':
+            require_once 'DB.php';
+            $dbObj = DB::connect($modelConf['dsn']);
+            if (PEAR::isError($dbObj)) {
+                die('PEAR::DB: Error with DB.');
+            }
+            $dbObj->setFetchMode(DB_FETCHMODE_ASSOC);
+            break;
+          case 'PEAR::MDB2':
+            require_once 'MDB2.php';
+            $dbObj = MDB2::connect($modelConf['dsn']);
+            if (PEAR::isError($dbObj)) {
+                die('PEAR::DB: Error with DB.');
+            }
+            $dbObj->setFetchMode(MDB2_FETCHMODE_ASSOC);
+            break;
         }
-
-        // TODO: Replace PEAR::DB
-        return new ModelManager(NULL);
-
-
-        $mainObj = null;
-        // TODO: check if $modelConf is a dsn
-        $dbObj = DB::connect($modelConf);
-        if (PEAR::isError($dbObj)) {
-            echo 'Error en conexi&oacute;n a BD';
-            //echo $dbObj->getMessage() . ' ' . $dbObj->getUserInfo();
-        }
-        $dbObj->setFetchMode(DB_FETCHMODE_ASSOC);
-
-        $mainObj = new DataBaseManager($dbObj);
-        return new ModelManager($mainObj);
+        return new ModelManager($dbObj);
     }
-}
-
-class DataManager {
 }
 
 class Model {
     public $dataManager;
 
-    public function __construct($dataManager) {
+    public function __construct($dataManager)
+    {
         $this->dataManager = $dataManager;
+    }
+
+    public function fetchAll($sql, $inputParams=null)
+    {
+        // TODO: only for PDO by now
+        $stm = $this->dataManager->prepare($sql);
+        $stm->execute($inputParams);
+        return $stm->fetchAll();
     }
 }
 

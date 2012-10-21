@@ -16,17 +16,6 @@
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 
-/* {{{ Class FactoryAuth
- *
- */
-class FactoryAuth {
-    public static function CreateAuth($__authOpt) {
-        $auth = new OzAuthManager('PDO', $__authOpt);
-        return $auth;
-    }
-}
-// }}}
-
 // {{{ Defines
 /**
  * Returned if session exceeds idle time
@@ -73,6 +62,17 @@ define('AUTH_LOG_INFO',     6);
  * Auth Log level - DEBUG
  */
 define('AUTH_LOG_DEBUG',    7);
+// }}}
+
+/* {{{ Class FactoryAuth
+ *
+ */
+class FactoryAuth {
+    public static function CreateAuth($__authOpt, $modelObj) {
+        $auth = new OzAuthManager($__authOpt, $modelObj);
+        return $auth;
+    }
+}
 // }}}
 
 /**
@@ -142,11 +142,18 @@ class OzAuthManager {
     private $_authChecks = 0;
 
     /**
-      * Assoc array with config values for Driver, from user.
+      * Assoc array with config values for auth, from user.
       *
       * @var array
       */
-    private $_driverData = array('type' => null, 'opts' => null);
+    private $_authOpts = null;
+
+    /**
+      * Model object
+      *
+      * @var object
+      */
+    private $_modelObj = null;
 
     /**
       * Flag to avoid multiple calls to start().
@@ -226,13 +233,11 @@ class OzAuthManager {
      *
      * Sets up the Auth manager and its storage driver.
      *
-     * @param string    Type of the storage driver
-     * @param mixed     Additional options for the storage driver
-     *                  (example: if you are using DB as the storage
-     *                  driver, you have to pass the dsn string here)
+     * @param mixed     Additional options for the storage driver.
+     * @param object    Model object from user.
      * @return void
      */
-    public function __construct($driverType, $driverOpts)
+    public function __construct($driverOpts, $modelObj)
     {
         $this->_status = AUTH_STATUS_OK;
         $this->_sanitizeInput($driverOpts);
@@ -252,14 +257,15 @@ class OzAuthManager {
         // To be defined by the user.
         $this->expire    = 36000;
         $this->idle      = 1000;
-        $this->_driverData = array('type' => $driverType, 'opts' => $driverOpts);
+        $this->_authOpts = $driverOpts;
+        $this->_modelObj = $modelObj;
 
     } // }}}
 
     // {{{ _sanitizeInput()
     /**
      * Ensures that the two input arrays have all the keys needed, and those undefined
-     * by the caller get here their default values.
+     * by the caller get here their DEFAULT values.
      *
      * @param  array   Reference to the driver options array.
      * @return void
@@ -315,7 +321,7 @@ class OzAuthManager {
             }
             $this->_session =& $_SESSION[$this->_sessionName];
 
-            $this->_storageObj = new OzAuthStorage($this->_driverData['type'], $this->_driverData['opts']);
+            $this->_storageObj = new OzAuthStorage($this->_modelObj, $this->_authOpts);
         } else {
             $this->log('Wrong call to start(): it has already been called.', AUTH_LOG_DEBUG);
             die();
@@ -701,54 +707,73 @@ class OzAuthManager {
 }
 
 class OzAuthStorage {
-    private $_type;
+    // {{{ properties
     private $_options;
     private $_dbObj = NULL;
     private $_querysArr;
     private $_checkedUserData = array();
+    // }}}
+    // {{{ OzAuthStorage() [constructor]
 
-    public function __construct($type, $storageOpts)
+    /**
+     * Constructor
+     *
+     * Sets up the Auth manager and its storage driver.
+     *
+     * @param mixed     Additional options for the storage driver.
+     * @param object    Model object from user.
+     * @return void
+     */
+    public function __construct($modelObj, $authOpts)
     {
-        $this->_type = $type;
-        $this->_options = $storageOpts;
-        if ($type == 'PDO') {
+        $this->_options = $authOpts;
+        $this->_dbObj = $modelObj;
+        /*
+        if ($interf == 'PDO') {
             $this->_dbObj = new PDO($this->_options['dsn']) or die("PDO: Problem with DB.");
             $this->_dbObj->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
-
-            $selectFields = $this->_dbGetSelectFields();
-            $this->_querysArr = array('check' => "SELECT $selectFields
-                                                  FROM {$this->_options['table']}
-                                                  WHERE {$this->_options['usernamecol']} = :user");
-        }
-    }
-
+        }*/
+        $selectFields = $this->_dbGetSelectFields();
+        $this->_querysArr = array('check' => "SELECT $selectFields
+                                              FROM {$this->_options['table']}
+                                              WHERE {$this->_options['usernamecol']} = :user");
+    } // }}}
+    // {{{ checkCredentials()
+    /**
+     * @return boolean
+     * @access public
+     */
     public function checkCredentials($user, $pass)
     {
-        if ($this->_dbObj) {
-            $stm = $this->_dbObj->prepare($this->_querysArr['check']);
-            $stm->execute(array(':user' => $user));
-            $res = $stm->fetchAll();
-            // TODO: HASH!!!
-            if (is_array($res) && count($res) == 1 && $res[0][$this->_options['passwordcol']] == md5($pass)) {
-                $this->_checkedUserData = array();
-                foreach ($res[0] as $key_i => $val_i) {
-                    if ( $key_i == $this->_options['usernamecol']
-                      || $key_i == $this->_options['passwordcol']) {
-                        continue;
-                    }
-                    $this->_checkedUserData[$key_i] = $val_i;
+        $res = $this->_dbObj->fetchAll($this->_querysArr['check'], array(':user' => $user));
+        // TODO: HASH!!!
+        if (is_array($res) && count($res) == 1 && $res[0][$this->_options['passwordcol']] == md5($pass)) {
+            $this->_checkedUserData = array();
+            foreach ($res[0] as $key_i => $val_i) {
+                if ( $key_i == $this->_options['usernamecol']
+                  || $key_i == $this->_options['passwordcol']) {
+                    continue;
                 }
-                return true;
+                $this->_checkedUserData[$key_i] = $val_i;
             }
+            return true;
         }
         return false;
-    }
-
+    } // }}}
+    // {{{ getAuthData()
+    /**
+     * @return array
+     * @access public
+     */
     public function getAuthData()
     {
         return (isset($this->_checkedUserData)) ? $this->_checkedUserData : array();
-    }
-
+    } // }}}
+    // {{{ _dbGetSelectFields()
+    /**
+     * @return string
+     * @access private
+     */
     private function _dbGetSelectFields()
     {
         $selectFieldsArr = array($this->_options['usernamecol'], $this->_options['passwordcol']);
@@ -773,7 +798,7 @@ class OzAuthStorage {
         }
 
         return implode(", ", $selectFieldsArr);
-    }
+    } // }}}
 }
 
 /* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4 foldmethod=marker: */

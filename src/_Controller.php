@@ -6,27 +6,36 @@ require_once '_Authentication.php';
 class Controller {
     // {{{ properties
     public $projName;
-    public $perms    = array();
-    public $names    = array();
+    public $perms      = array();
+    public $names      = array();
     public $outformats = array();
-    public $messages = array();
+    public $messages   = array();
 
     public $authObj;
-    public $modelManager;
+    public $modelManager = null;
     public $mainViewObj;
 
     public $actionName;
     public $actionParams;
+    public $afterLoginAction;
     // Default names for login/logout/start actions.
     public $loginlogoutstart  = array('login' => 'login', 'logout' => 'logout', 'start' => 'start');
+    private $loginMessage = '';
 
     // q.- Quiet, v.- Verbose, vv.- Very Verbose.
     public $verboseLevel;
 
     // these come from configuration
-    public $dataDriver;
+    public $dataDriver = array('dsn' => null, 'interface' => null);
     public $authOpts;
-    private $actionsArr;
+
+    // bootstrapper config
+    private $indexFile = 'index.php';
+    private $actionKey = 'accion';
+
+    // flags
+    private $_dataDriverSet = false;
+    private $_hasAuth       = false;
     // }}}
 
     // {{{ Controller() [constructor]
@@ -41,28 +50,37 @@ class Controller {
      */
     public function __construct($projName, $verboseLevel = 'q')
     {
-        $this->projName       = $projName;
-        $this->actionsArr     = array();
-        $this->dataDriver     = null;
-
         if ( ! isset($_SERVER['SERVER_NAME']))    $_SERVER['SERVER_NAME'] = 'localhost';
-
+        $this->projName     = $projName;
         $this->verboseLevel = $verboseLevel;
+        // Force needed features for login and logout
+        $this->outformats[$this->loginlogoutstart['login']]  = 'html-in';
+        $this->outformats[$this->loginlogoutstart['logout']] = 'html';
+        $this->names[$this->loginlogoutstart['login']]  = '';
+        $this->names[$this->loginlogoutstart['logout']] = '';
     } // }}}
 
     // {{{ setAction()
     /**
      * Defines a new action so that it gets properly managed by controller.
      *
-     * @param accion string       Action's code.
-     * @param accion string       Action's name.
-     * @param accion string       Action's profile.
-     * @param accion string       Action's output type.
+     * @param string       Action's code.
+     * @param string       Action's name.
+     * @param string       Action's profile.
+     * @param string       Action's output type.
      * @return void
      */
     public function setAction($actCode, $actName, $actProfile, $actOutput)
     {
-        $this->actionsArr[$actCode] = array('name' => $actName, 'profile' => $actProfile, 'output' => $actOutput);
+        if ($actCode == $this->loginlogoutstart['logout']) {
+            $this->dieNow('Forbidden action name.');
+        }
+        $this->perms[$actCode]      = ($actProfile != 0) ? $actProfile : 1;
+        $this->names[$actCode]      = $actName;
+        $this->outformats[$actCode] = (isset($actOutput)) ? $actOutput : 'html';
+        //if ($this->outformats[$actCode] == 'html-in')    $this->loginlogoutstart['login'] = $actCode;
+        //if ($this->outformats[$actCode] == 'html-out')   $this->loginlogoutstart['logout'] = $actCode;
+        if ($this->outformats[$actCode] == 'html-start') $this->loginlogoutstart['start'] = $actCode;
     } //}}}
 
     // {{{ setDataDriver()
@@ -71,19 +89,26 @@ class Controller {
      *
      * This must be a dsn if using a DataBase.
      *
-     * @param accion string       DSN if using DataBase.
+     * @param string       DSN if using DataBase.
+     * @param string       (Optional) Class to be used: PDO (default) or PEAR::DB or PEAR::MDB2.
      * @return void
      */
-    public function setDataDriver($ddriver)
+    public function setDataDriver($ddriver, $interf='PDO')
     {
-        $this->dataDriver = $ddriver;
+        $_avails = array('PDO', 'PEAR::DB', 'PEAR::MDB2');
+        if (! in_array($interf, $_avails)) {
+            $this->dieNow('Bad DB interface selected. Must be one among: [' . implode(', ', $_avails) . '].');
+        }
+        $this->dataDriver['dsn'] = $ddriver;
+        $this->dataDriver['interface'] = $interf;
+        $this->_dataDriverSet = true;
     } //}}}
 
     // {{{ useAuth()
     /**
      * Defines the way the FW performs auth.
      *
-     * @param accion array       Hash with the parameters to validate and query users info.
+     * @param array       Hash with the parameters to validate and query users info.
      * @return void
      */
     public function useAuth($authConf)
@@ -99,46 +124,42 @@ class Controller {
      */
     public function startAll()
     {
-        $this->start($accion, $params);
+        $this->start();
         $this->run();
         $this->finish();
     } //}}}
 
     // {{{ start()
     /**
-     * Inicia las acciones del framework.
+     * Starts the framework actions.
      *
-     * @param accion string       Módulo a ejecutar por el controlador.
-     * @param params string       Parámetros opcionales.
+     * @param string       Module to be executed.
+     * @param string       Optional parameters.
      * @return void
      */
-    public function start($accion=null, $params=null) {
-        if ($accion == null) {
-            $accion = (isset($_REQUEST['accion'])) ? $_REQUEST['accion'] : '';
+    public function start($action=null, $params=null) {
+        if (strlen($this->loginlogoutstart['start']) == 0) {
+            $this->dieNow('There must be a start action.');
+        }
+
+        if ($action == null) {
+            $action = (isset($_REQUEST[$this->actionKey])) ? $_REQUEST[$this->actionKey] : '';
         }
         if ($params == null) {
             $params = (isset($_REQUEST['params'])) ? $_REQUEST['params'] : '';
         }
-        foreach ($this->actionsArr as $act_key => $act_i) {
-            $this->perms[$act_key]      = ($act_i['profile'] != 0) ? $act_i['profile'] : 1;
-            $this->names[$act_key]      = $act_i['name'];
-            $this->outformats[$act_key] = (isset($act_i['output'])) ? $act_i['output'] : 'html';
-            if ($this->outformats[$act_key] == 'html-in')    $this->loginlogoutstart['login'] = $act_key;
-            if ($this->outformats[$act_key] == 'html-out')   $this->loginlogoutstart['logout'] = $act_key;
-            if ($this->outformats[$act_key] == 'html-start') $this->loginlogoutstart['start'] = $act_key;
-        }
 
-        if (strlen(trim($accion)) == 0) {
+        $this->actionName = trim(preg_replace("/[^A-Za-z0-9_-]/", "", $action));
+
+        if (strlen($this->actionName) == 0) {
             $this->actionName = $this->loginlogoutstart['start'];
-        } else {
-            $this->actionName = trim($accion);
         }
         $this->actionParams = trim($params);
 
         // not registered action
         if (!in_array($this->actionName, array_keys($this->names))) {
             if ($this->verboseLevel == 'v' || $this->verboseLevel == 'vv') {
-                $this->dieNow("Acci&oacute;n {$this->actionName} no registrada");
+                $this->dieNow("There is no registered action called '{$this->actionName}'.");
             }
             $this->actionName = $this->loginlogoutstart['start'];
         }
@@ -146,50 +167,58 @@ class Controller {
         /*
         * ModelManager
         */
-        $this->modelManager = FactoryModel::CreateByConfig($this->dataDriver);
+        if ($this->_dataDriverSet) {
+            $this->modelManager = FactoryModel::CreateByConfig($this->dataDriver);
+        }
 
         /*
         * Auth
         */
-        $this->authObj     = null;
-        if (isset($this->authOpts) && is_array($this->authOpts)) {
+        $this->authObj = null;
+        if (isset($this->authOpts) && is_array($this->authOpts) && $this->_dataDriverSet) {
             $this->authOpts['sessionName'] = "Session_" . $this->projName;
-            $this->authOpts['dsn']         = $this->dataDriver;
 
             // Always prevent logs from ajax actions
             if ($this->outformats[$this->actionName] == 'ajax') {
                 $this->authOpts['authLogLevel'] = "";
             }
 
-            $this->authObj = FactoryAuth::CreateAuth($this->authOpts);
+            $this->authObj = FactoryAuth::CreateAuth($this->authOpts, $this->modelManager);
+            $this->_hasAuth = true;
             $this->authObj->start();
-        }
 
-        // Try to Auth user, and fix action names.
-        if ( ! $this->_hasAuth()) {
-            // Avoid nonsense
-            if ( $this->actionName == $this->loginlogoutstart['login']
-              || $this->actionName == $this->loginlogoutstart['logout']) {
-                $this->actionName = $this->loginlogoutstart['start'];
-            }
-        } else {
+            // Try to Auth user, and fix action names.
             // process logout
             if ($this->actionName == $this->loginlogoutstart['logout']) {
                 if ($this->authObj->checkAuth()) {
                     $this->_logMessage("User '{$this->authObj->getUsername()}' logs out.");
                     $this->authObj->logout();
                 }
-                $this->actionName = $this->loginlogoutstart['login'];
+                $host  = $_SERVER['HTTP_HOST'];
+                $uri   = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+                header("Location: http://$host$uri/{$this->indexFile}");
+                exit();
             } else {
                 if ( ! $this->authObj->checkAuth()) {
                     if ( ! $this->authObj->tryLogin()) {
+                        $this->afterLoginAction = $this->actionName;
                         $this->actionName = $this->loginlogoutstart['login'];
-                    } else if ($this->actionName == $this->loginlogoutstart['login']) {
+                        if ($this->authObj->getStatus() == AUTH_STATUS_WRONG_LOGIN) {
+                            $this->loginMessage = 'Login failed.';
+                        }
+                    }/* else if ($this->actionName == $this->loginlogoutstart['login']) {
                         $this->actionName = $this->loginlogoutstart['start'];
                     }
                 } else if ($this->actionName == $this->loginlogoutstart['login']) {
                     $this->actionName = $this->loginlogoutstart['start'];
+                    */
                 }
+            }
+        } else {
+            // Avoid nonsense
+            if ( $this->actionName == $this->loginlogoutstart['login']
+              || $this->actionName == $this->loginlogoutstart['logout']) {
+                $this->actionName = $this->loginlogoutstart['start'];
             }
         }
 
@@ -207,21 +236,30 @@ class Controller {
      */
     public function run()
     {
-        // trata de ejecutar app no autorizada, habiendo autenticacion
-        if ( $this->_hasAuth() ) {
-            $profile = $this->authObj->getProfile();
-            if ( ! ($this->_profileInAction($profile, $this->perms[$this->actionName]))) {
-                die("M&oacute;dulo ( {$this->actionName} ) no autorizado para su perfil de usuario ($profile).");
-            }
-        }
-        $this->_logMessage("Se ejecuta accion " . $this->actionName);
-
+        $this->_logMessage("Executing action '{$this->actionName}'.");
         $actionFunc = $this->actionName . 'Action';
 
-        if (method_exists($this->modelManager, $actionFunc)) {
+        if ($this->actionName == $this->loginlogoutstart['login']) {
+            $afterLogin = sprintf("%s?%s=%s", $this->indexFile, $this->actionKey, $this->afterLoginAction);
+            $viewRetCode = $this->mainViewObj->nfw_loginAction($this->loginMessage, $afterLogin);
+            if ( $viewRetCode == -1) {
+                $this->dieNow("Error en 'View'.");
+            }
+            return;
+        }
+
+        // tries to execute non authorized action, even though user is authenticated.
+        if ($this->_hasAuth) {
+            $profile = $this->authObj->getProfile();
+            if ( ! ($this->_profileInAction($profile, $this->perms[$this->actionName]))) {
+                $this->mainViewObj->nfw_dieWithMessage("The module '{$this->actionName}' is not authorized for your profile ($profile).");
+                $this->dieNow();
+            }
+        }
+
+        if ($this->modelManager && method_exists($this->modelManager, $actionFunc)) {
             $result = $this->modelManager->$actionFunc($this->actionParams);
         } else {
-            //$result = "Error con llamado: " . $this->actionName;
             $result = null;
         }
         /** Failure from Model: let's see later if this is useful.
@@ -233,12 +271,12 @@ class Controller {
         }*/
 
         if (method_exists($this->mainViewObj, $actionFunc)) {
-            $viewRetCode = $this->mainViewObj->$actionFunc($this->actionParams, $result);
+            $viewRetCode = $this->mainViewObj->$actionFunc($result);
             if ( $viewRetCode == -1) {
                 $this->dieNow("Error en 'View'.");
             }
         } else {
-            echo "View no posee m&eacute;todo para acci&oacute;n: " . $this->actionName;
+            echo "View has no method for the current action '{$this->actionName}'.";
         }
     } //}}}
 
@@ -251,7 +289,8 @@ class Controller {
      */
     public function finish()
     {
-        if ($this->_hasAuth()) {
+        $this->printMessages();
+        if ($this->_hasAuth) {
             $this->authObj->finish();
         }
     } // }}}
@@ -270,17 +309,6 @@ class Controller {
         die();
     } // }}}
 
-    // {{{ _hasAuth()
-    /**
-     * Tells if the framework is actually using an Auth object.
-     *
-     * @return boolean
-     */
-    private function _hasAuth()
-    {
-        return !(is_null($this->authObj));
-    } // }}}
-
     // {{{ _logMessage()
     /**
      * Stores a message to be diplayed later.
@@ -290,6 +318,19 @@ class Controller {
      */
     protected function _logMessage($msg) {
         $this->messages[] = $msg;
+    } // }}}
+    // {{{ _logMessage()
+    /**
+     * Prints the stored messages, if the verbose levels allow that.
+     *
+     * @return void
+     */
+    protected function printMessages() {
+        if ($this->verboseLevel == 'v' || $this->verboseLevel == 'vv') {
+            foreach ($this->messages as $msg) {
+                $this->mainViewObj->nfw_printMessage($msg);
+            }
+        }
     } // }}}
 
     // {{{ _profileInAction()
