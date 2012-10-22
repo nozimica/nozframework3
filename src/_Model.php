@@ -31,6 +31,7 @@ class FactoryModel {
 
 class Model {
     public $dataManager;
+    protected $authData;
 
     public function __construct($dataManager)
     {
@@ -41,8 +42,16 @@ class Model {
     {
         // TODO: only for PDO by now
         $stm = $this->dataManager->prepare($sql);
+        if ( ! $stm) {
+            return false;
+        }
         $stm->execute($inputParams);
         return $stm->fetchAll();
+    }
+
+    public function receiveAuthData($authData)
+    {
+        $this->authData = $authData;
     }
 }
 
