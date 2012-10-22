@@ -436,10 +436,8 @@ class OzAuthManager {
                 $this->log('Session OK.', AUTH_LOG_INFO);
                 return true;
             }
-        } else {
-            $this->log('Unable to locate session storage.', AUTH_LOG_DEBUG);
-            return false;
         }
+        $this->log('Unable to locate session storage.', AUTH_LOG_DEBUG);
         $this->log('No login session.', AUTH_LOG_INFO);
         return false;
     } // }}}
@@ -472,8 +470,11 @@ class OzAuthManager {
                 $this->_status = AUTH_STATUS_WRONG_LOGIN;
             }
         } else {
-            $this->log('Empty username.', AUTH_LOG_INFO);
-            $this->_status = AUTH_STATUS_EMPTY_LOGIN;
+            // record this status only if no other status has been recorded before
+            if ($this->_status == AUTH_STATUS_OK) {
+                $this->log('Empty username.', AUTH_LOG_INFO);
+                $this->_status = AUTH_STATUS_EMPTY_LOGIN;
+            }
         }
 
         if ($login_ok) {
@@ -728,11 +729,6 @@ class OzAuthStorage {
     {
         $this->_options = $authOpts;
         $this->_dbObj = $modelObj;
-        /*
-        if ($interf == 'PDO') {
-            $this->_dbObj = new PDO($this->_options['dsn']) or die("PDO: Problem with DB.");
-            $this->_dbObj->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
-        }*/
         $selectFields = $this->_dbGetSelectFields();
         $this->_querysArr = array('check' => "SELECT $selectFields
                                               FROM {$this->_options['table']}
