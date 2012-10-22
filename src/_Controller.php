@@ -37,7 +37,6 @@ class Controller {
     private $_dataDriverSet = false;
     private $_hasAuth       = false;
     // }}}
-
     // {{{ Controller() [constructor]
     /**
      * Constructor
@@ -82,7 +81,6 @@ class Controller {
         //if ($this->outformats[$actCode] == 'html-out')   $this->loginlogoutstart['logout'] = $actCode;
         if ($this->outformats[$actCode] == 'html-start') $this->loginlogoutstart['start'] = $actCode;
     } //}}}
-
     // {{{ setDataDriver()
     /**
      * Defines the way the FW gets all the data.
@@ -103,7 +101,6 @@ class Controller {
         $this->dataDriver['interface'] = $interf;
         $this->_dataDriverSet = true;
     } //}}}
-
     // {{{ useAuth()
     /**
      * Defines the way the FW performs auth.
@@ -128,7 +125,6 @@ class Controller {
         $this->run();
         $this->finish();
     } //}}}
-
     // {{{ start()
     /**
      * Starts the framework actions.
@@ -203,15 +199,18 @@ class Controller {
                     if ( ! $this->authObj->tryLogin()) {
                         $this->afterLoginAction = $this->actionName;
                         $this->actionName = $this->loginlogoutstart['login'];
-                        if ($this->authObj->getStatus() == AUTH_STATUS_WRONG_LOGIN) {
+                        switch ($this->authObj->getStatus()) {
+                          case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
+                            break;
+                          case AUTH_STATUS_IDLED:
+                            $this->loginMessage = 'Login idled.';
+                            break;
+                          case AUTH_STATUS_EXPIRED:
+                            $this->loginMessage = 'Login expired.';
+                            break;
                         }
-                    }/* else if ($this->actionName == $this->loginlogoutstart['login']) {
-                        $this->actionName = $this->loginlogoutstart['start'];
                     }
-                } else if ($this->actionName == $this->loginlogoutstart['login']) {
-                    $this->actionName = $this->loginlogoutstart['start'];
-                    */
                 }
             }
         } else {
@@ -227,7 +226,6 @@ class Controller {
         */
         $this->mainViewObj = FactoryView::CreateByOutFormat($this->outformats[$this->actionName]);
     } // }}}
-
     // {{{ run()
     /**
      * Runs framework.
@@ -257,6 +255,11 @@ class Controller {
             }
         }
 
+        // TODO: #5: Sharing data between Auth and Model.
+        $authDataArr = $this->authObj->getAuthData();
+        $authDataArr['usu_username'] = $this->authObj->getUsername();
+        $this->modelManager->receiveAuthData($authDataArr);
+
         if ($this->modelManager && method_exists($this->modelManager, $actionFunc)) {
             $result = $this->modelManager->$actionFunc($this->actionParams);
         } else {
@@ -279,7 +282,6 @@ class Controller {
             echo "View has no method for the current action '{$this->actionName}'.";
         }
     } //}}}
-
     // {{{ finish()
     /**
      * Performs final tasks for framework, if any.
@@ -319,7 +321,7 @@ class Controller {
     protected function _logMessage($msg) {
         $this->messages[] = $msg;
     } // }}}
-    // {{{ _logMessage()
+    // {{{ printMessages()
     /**
      * Prints the stored messages, if the verbose levels allow that.
      *
