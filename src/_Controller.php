@@ -164,7 +164,7 @@ class Controller {
         * ModelManager
         */
         if ($this->_dataDriverSet) {
-            $this->modelManager = FactoryModel::CreateByConfig($this->dataDriver);
+            $this->setModelObj(FactoryModel::CreateByConfig($this->dataDriver));
         }
 
         /*
@@ -199,6 +199,7 @@ class Controller {
                     if ( ! $this->authObj->tryLogin()) {
                         $this->afterLoginAction = $this->actionName;
                         $this->actionName = $this->loginlogoutstart['login'];
+                        //var_dump ($this->authObj->getStatus());
                         switch ($this->authObj->getStatus()) {
                           case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
@@ -224,7 +225,7 @@ class Controller {
         /*
         * View
         */
-        $this->mainViewObj = FactoryView::CreateByOutFormat($this->outformats[$this->actionName]);
+        $this->setViewObj(FactoryView::CreateByOutFormat($this->outformats[$this->actionName]));
     } // }}}
     // {{{ run()
     /**
@@ -251,7 +252,7 @@ class Controller {
             $profile = $this->authObj->getProfile();
             if ( ! ($this->_profileInAction($profile, $this->perms[$this->actionName]))) {
                 $this->mainViewObj->nfw_dieWithMessage("The module '{$this->actionName}' is not authorized for your profile ($profile).");
-                $this->dieNow();
+                $this->dieNow('');
             }
         }
 
@@ -297,12 +298,36 @@ class Controller {
         }
     } // }}}
 
+    // {{{ setModelObj()
+    /**
+     * Sets the model object to be used.
+     *
+     * @param Object The model object to be set.
+     * @return void
+     */
+    protected function setModelObj(Model $obj)
+    {
+        $this->modelManager = $obj;
+    } // }}}
+    // {{{ setViewObj()
+    /**
+     * Sets the view object to be used.
+     *
+     * @param Object The view object to be set.
+     * @return void
+     */
+    protected function setViewObj(ViewBase $obj)
+    {
+        $this->mainViewObj = $obj;
+        $this->mainViewObj->setControllerObj($this);
+    } // }}}
+
     // {{{ dieNow()
     /**
      * Aborts framework execution. Calls finish() among others.
      *
+     * @param string The message to show before dying.
      * @return void
-     * @see finish()
      */
     public function dieNow($msg)
     {
