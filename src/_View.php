@@ -1,5 +1,7 @@
 <?php
-require_once "HTML/Template/IT.php";
+//require_once "HTML/Template/IT.php";
+require_once "vendor/Twig/lib/Twig/Autoloader.php";
+Twig_Autoloader::register();
 
 class FactoryView {
     static public function CreateByOutFormat($outFormat) {
@@ -13,20 +15,35 @@ class FactoryView {
     }
 }
 
+/**
+ * ViewBase class is the inner core for any View implementation.
+ */
+class ViewBase {
+    protected $controllerObj;
+
+    public function setControllerObj(Controller $obj)
+    {
+        $this->controllerObj = $obj;
+    }
+}
+
+/**
+ * Interface to be used by the main view implementarion, usually the HTML one.
+ */
 interface iBasicView {
     public function nfw_printMessage($msg);
     public function nfw_loginAction($res, $afterLogin);
     public function nfw_dieWithMessage($msg);
 }
 
-class AjaxBase {
+class AjaxViewBase extends ViewBase {
     public function show($msg)
     {
         echo $msg;
     }
 }
 
-class ViewBuilder implements iBasicView {
+class HtmlViewBase extends ViewBase implements iBasicView {
     protected $mainView;
     protected $contentView;
 
@@ -60,11 +77,14 @@ class ViewBuilder implements iBasicView {
  * Template Class
  */
 class HtmlView {
-    var $templateObj;
-    //var $templPath = "../templates";
-    var $templPath = "templates";
+    protected $templateObj;
+    protected $templPath = "templates";
+    protected $twigObj;
+    protected $templateObjTwig;
+    protected $replacements;
 
     public function __construct($action = null) {
+        /*
         $this->templateObj = new HTML_Template_IT($this->templPath);
         if (is_null($action)) {
             $this->templateObj->loadTemplatefile("_main.tpl.html");
@@ -72,38 +92,52 @@ class HtmlView {
         } else {
             $this->templateObj->loadTemplatefile("$action.tpl.html");
         }
+        */
+
+        $this->twigObj = new Twig_Environment(new Twig_Loader_Filesystem('templates'), array('autoescape' => false));
+        $this->replacements = array();
+        if (is_null($action)) {
+            $this->templateObjTwig = $this->twigObj->loadTemplate("_main.tpl.html");
+            $this->_loadHeadLibs();
+        } else {
+            $this->templateObjTwig = $this->twigObj->loadTemplate("$action.tpl.html");
+        }
     }
 
     private function _loadHeadLibs() {
         if ( ($libsStr = file_get_contents($this->templPath . '/_htmlHeadLibs.tpl.html')) !== false) {
-            $this->templateObj->setVariable('HEADLIBS', $libsStr);
+            //$this->templateObj->setVariable('HEADLIBS', $libsStr);
+            $this->replacements['HEADLIBS'] = $libsStr;
         } else {
-            $this->templateObj->setVariable('HEADLIBS', '');
+            //$this->templateObj->setVariable('HEADLIBS', '');
         }
     }
 
     public function setVariable($varName, $varValue) {
-        $this->templateObj->setVariable($varName, $varValue);
+        //$this->templateObj->setVariable($varName, $varValue);
+        $this->replacements[$varName] = $varValue;
     }
 
     public function beginBlock($block) {
-        $this->templateObj->setCurrentBlock($block);
+        //$this->templateObj->setCurrentBlock($block);
     }
 
     public function endBlock($block) {
-        $this->templateObj->parseCurrentBlock($block);
+        //$this->templateObj->parseCurrentBlock($block);
     }
 
     public function parseBlock($block) {
-        $this->templateObj->parse($block);
+        //$this->templateObj->parse($block);
     }
 
     public function show($msg=null) {
-        $this->templateObj->show();
+        //$this->templateObj->show();
+        echo $this->templateObjTwig->render($this->replacements);
     }
 
     public function toHtml() {
-        return $this->templateObj->get();
+        //return $this->templateObj->get();
+        return $this->templateObjTwig->render($this->replacements);
     }
 }
 
