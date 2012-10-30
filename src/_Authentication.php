@@ -44,7 +44,11 @@ define('AUTH_STATUS_EMPTY_LOGIN',              -4);
 /**
  * Returned if security system detects a breach
  */
-define('AUTH_STATUS_SECURITY_BREACH',          -5);
+define('AUTH_STATUS_SECURITY_BREACH',            -5);
+define('AUTH_STATUS_SECURITY_BREACH_REMOTEADDR', -51);
+define('AUTH_STATUS_SECURITY_BREACH_FORWARDED',  -52);
+define('AUTH_STATUS_SECURITY_BREACH_USERAGENT',  -53);
+define('AUTH_STATUS_SECURITY_BREACH_CHALLENGE',  -54);
 /**
  * Returned if a container method is not supported.
  */
@@ -306,6 +310,7 @@ class OzAuthManager {
             $this->_alreadyStarted = true;
             $this->log('start() called.', AUTH_LOG_DEBUG);
 
+            session_name($this->_sessionName);
             // Start the session
             if( "" === session_id()) {
                 @session_start() or die("Problem with session start");
@@ -395,7 +400,7 @@ class OzAuthManager {
                 if ( isset($_SERVER['REMOTE_ADDR'])
                   && $this->_session['sessionip'] != $_SERVER['REMOTE_ADDR']) {
                     $this->log('Security Breach. Remote IP Address changed.', AUTH_LOG_INFO);
-                    $this->_status = AUTH_STATUS_SECURITY_BREACH;
+                    $this->_status = AUTH_STATUS_SECURITY_BREACH_REMOTEADDR;
                     $this->logout();
                     return false;
                 }
@@ -405,7 +410,7 @@ class OzAuthManager {
                 if ( isset($_SERVER['HTTP_X_FORWARDED_FOR'])
                   && $this->_session['sessionforwardedfor'] != $_SERVER['HTTP_X_FORWARDED_FOR']) {
                     $this->log('Security Breach. Forwarded For IP Address changed.', AUTH_LOG_INFO);
-                    $this->_status = AUTH_STATUS_SECURITY_BREACH;
+                    $this->_status = AUTH_STATUS_SECURITY_BREACH_FORWARDED;
                     $this->logout();
                     return false;
                 }
@@ -415,7 +420,7 @@ class OzAuthManager {
                 if ( isset($_SERVER['HTTP_USER_AGENT'])
                   && $this->_session['sessionuseragent'] != $_SERVER['HTTP_USER_AGENT']) {
                     $this->log('Security Breach. User Agent changed.', AUTH_LOG_INFO);
-                    $this->_status = AUTH_STATUS_SECURITY_BREACH;
+                    $this->_status = AUTH_STATUS_SECURITY_BREACH_USERAGENT;
                     $this->logout();
                     return false;
                 }
@@ -427,7 +432,7 @@ class OzAuthManager {
                 if ( isset($this->_session['challengecookieold'])
                   && $this->_session['challengecookieold'] != $_COOKIE['authchallenge']) {
                     $this->log('Security Breach. Challenge Cookie mismatch.', AUTH_LOG_INFO);
-                    $this->_status = AUTH_STATUS_SECURITY_BREACH;
+                    $this->_status = AUTH_STATUS_SECURITY_BREACH_CHALLENGE;
                     $this->logout();
                     $this->tryLogin();
                     return false;
