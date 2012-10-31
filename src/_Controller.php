@@ -1,4 +1,12 @@
 <?php
+
+function _exportVar($var)
+{
+    if ($_SERVER['REMOTE_ADDR'] == '172.17.71.170') {
+        //echo '<pre>'; var_export($var); echo '</pre>';
+    }
+}
+
 require_once '_Model.php';
 require_once '_View.php';
 require_once '_Authentication.php';
@@ -57,6 +65,19 @@ class Controller {
         $this->outformats[$this->loginlogoutstart['logout']] = 'html';
         $this->names[$this->loginlogoutstart['login']]  = '';
         $this->names[$this->loginlogoutstart['logout']] = '';
+    } // }}}
+    // {{{ Controller() [destructor]
+    /**
+     * Destructor
+     *
+     * @return void
+     */
+    public function __destruct()
+    {
+        $this->printMessages();
+        if ($this->_hasAuth) {
+            $this->authObj->finish();
+        }
     } // }}}
 
     // {{{ setAction()
@@ -199,7 +220,7 @@ class Controller {
                     if ( ! $this->authObj->tryLogin()) {
                         $this->afterLoginAction = $this->actionName;
                         $this->actionName = $this->loginlogoutstart['login'];
-                        //var_dump ($this->authObj->getStatus());
+                        _exportVar ($this->authObj->getStatus());
                         switch ($this->authObj->getStatus()) {
                           case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
@@ -211,6 +232,12 @@ class Controller {
                             $this->loginMessage = 'Login expired.';
                             break;
                         }
+                    } else {
+                        // successfully logged in
+                        $host  = $_SERVER['HTTP_HOST'];
+                        $uri   = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+                        header("Location: http://$host$uri/{$this->indexFile}");
+                        exit();
                     }
                 }
             }
@@ -292,10 +319,7 @@ class Controller {
      */
     public function finish()
     {
-        $this->printMessages();
-        if ($this->_hasAuth) {
-            $this->authObj->finish();
-        }
+        $this->__destruct();
     } // }}}
 
     // {{{ setModelObj()

@@ -38,6 +38,11 @@ class Model {
         $this->dataManager = $dataManager;
     }
 
+    public function __destruct()
+    {
+        $this->dataManager = null;
+    }
+
     public function fetchAll($sql, $inputParams=null)
     {
         // TODO: only for PDO by now
