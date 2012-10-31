@@ -229,6 +229,13 @@ class OzAuthManager {
      */
     private $_sessionIdAlwaysUpdated = false;
 
+    /**
+     * Parameters to be used when setting cookies.
+     *
+     * @var string
+     */
+    private $_cookieParams, $_usingCookies;
+
     // }}}
     // {{{ OzAuthManager() [constructor]
 
@@ -250,6 +257,12 @@ class OzAuthManager {
         $this->_postUsername = $driverOpts['postUsername'];
         $this->_postPassword = $driverOpts['postPassword'];
         $this->_setLogLevel($driverOpts['authLogLevel']);
+        $this->_cookieParams = array('lifetime'  => 0
+                                    , 'path'     => rtrim(dirname($_SERVER['PHP_SELF']), '/\\')
+                                    , 'domain'   => $_SERVER['HTTP_HOST']
+                                    , 'secure'   => false
+                                    , 'httponly' => true);
+        $this->_usingCookies = ini_get("session.use_cookies");
 
         if (isset($driverOpts['profilecol'])) {
             if (is_array($driverOpts['profilecol'])) {
@@ -311,6 +324,9 @@ class OzAuthManager {
             $this->log('start() called.', AUTH_LOG_DEBUG);
 
             session_name($this->_sessionName);
+            session_set_cookie_params($this->_cookieParams['lifetime'], $this->_cookieParams['path']
+                                    , $this->_cookieParams['domain'], $this->_cookieParams['secure']
+                                    , $this->_cookieParams['httponly']);
             // Start the session
             if( "" === session_id()) {
                 @session_start() or die("Problem with session start");
@@ -325,7 +341,6 @@ class OzAuthManager {
                 $_SESSION[$this->_sessionName] = array();
             }
             $this->_session =& $_SESSION[$this->_sessionName];
-
             $this->_storageObj = new OzAuthStorage($this->_modelObj, $this->_authOpts);
         } else {
             $this->log('Wrong call to start(): it has already been called.', AUTH_LOG_DEBUG);
@@ -347,6 +362,9 @@ class OzAuthManager {
         /*if (!$this->checkAuth() && $this->mustLogin) {
             $this->tryLogin();
         }*/
+        _exportVar($_SESSION);
+        _exportVar($_COOKIE);
+        _exportVar(session_get_cookie_params());
     } // }}}
     // {{{ checkAuth()
 
@@ -382,10 +400,8 @@ class OzAuthManager {
                 return false;
             }
 
-            if ( isset($this->_session['registered'])
-              && isset($this->_session['username'])
-              && $this->_session['registered'] === true
-              && $this->_session['username'] != '') {
+            if ( isset($this->_session['username'])
+              && trim($this->_session['username']) != '') {
 
                 $this->_session['lastTimestamp'] = time();
 
@@ -427,8 +443,6 @@ class OzAuthManager {
 
                 // Check challenge cookie here, if challengecookieold is not set
                 // this is the first time and check is skipped
-                // TODO when user open two pages similtaneuly (open in new window,open
-                // in tab) auth breach is caused find out a way around that if possible
                 if ( isset($this->_session['challengecookieold'])
                   && $this->_session['challengecookieold'] != $_COOKIE['authchallenge']) {
                     $this->log('Security Breach. Challenge Cookie mismatch.', AUTH_LOG_INFO);
@@ -466,7 +480,7 @@ class OzAuthManager {
         // When the user has already entered a username, we have to validate it.
         if (!empty($this->username)) {
             if (true === $this->_storageObj->checkCredentials($this->username, $this->password)) {
-                $this->_session['challengekey'] = md5($this->username.$this->password);
+                //$this->_session['challengekey'] = md5($this->username.$this->password);
                 $login_ok = true;
                 $this->log('Successful login.', AUTH_LOG_INFO);
                 $this->setAuth($this->username);
@@ -507,14 +521,9 @@ class OzAuthManager {
         $this->username = '';
         $this->password = '';
 
-        $this->_session = array();
-        if (ini_get("session.use_cookies")) {
-            $cookieParams = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000,
-                    $cookieParams["path"], $cookieParams["domain"],
-                    $cookieParams["secure"], $cookieParams["httponly"]
-                    );
-        }
+        $_SESSION = array();
+        $this->_setCookie(session_name(), null);
+        $this->_setCookie('authchallenge', null);
         session_destroy();
 
     } // }}}
@@ -543,6 +552,7 @@ class OzAuthManager {
      * @param  string Username
      * @return void
      * @access public
+     * @see tryLogin()
      */
     public function setAuth($username)
     {
@@ -569,16 +579,18 @@ class OzAuthManager {
         $this->_session['sessionforwardedfor'] = isset($_SERVER['HTTP_X_FORWARDED_FOR'])
             ? $_SERVER['HTTP_X_FORWARDED_FOR']
             : '';
+        /*$this->_session['sessionreferer'] = isset($_SERVER['HTTP_REFERER'])
+            ? $_SERVER['HTTP_REFERER']
+            : '';*/
 
         // This should be set by the container to something more safe
         // Like md5(passwd.microtime)
-        if (empty($this->_session['challengekey'])) {
+        /*if (empty($this->_session['challengekey'])) {
             $this->_session['challengekey'] = md5($username.microtime());
-        }
+        }*/
 
         $this->_updateChallengeCookies();
 
-        $this->_session['registered'] = true;
         $this->_session['username']   = $username;
         $this->_session['loginTimestamp'] = time();
         $this->_session['lastTimestamp']  = time();
@@ -697,7 +709,6 @@ class OzAuthManager {
 
     /**
      * Updates challengecookies.
-     * TODO: review this feature.
      *
      * @return void
      * @access private
@@ -707,8 +718,30 @@ class OzAuthManager {
         if (isset($this->_session['challengecookie'])) {
             $this->_session['challengecookieold'] = $this->_session['challengecookie'];
         }
-        $this->_session['challengecookie'] = md5($this->_session['challengekey'].microtime());
-        setcookie('authchallenge', $this->_session['challengecookie'], 0, '/', '', false, true);
+        $this->_session['challengecookie'] = md5($this->_session['username'].microtime());
+        $this->_setCookie('authchallenge', $this->_session['challengecookie']);
+    } // }}}
+
+    // {{{ _setCookie()
+
+    /**
+     * Creates or updates a cookie.
+     *
+     * @param string    Cookie name.
+     * @param mixed     Cookie value. If null, then remove cookie.
+     * @return void
+     * @access private
+     */
+    private function _setCookie($cName, $cValue)
+    {
+        if ($this->_usingCookies) {
+            $expiry = ( ! is_null($cValue)) ? $this->_cookieParams['lifetime'] : (time() - 42000);
+            setcookie($cName, $cValue, $expiry
+              , $this->_cookieParams['path']
+              , $this->_cookieParams['domain']
+              , $this->_cookieParams['secure']
+              , $this->_cookieParams['httponly']);
+        }
     } // }}}
 }
 
