@@ -43,7 +43,7 @@ class Controller {
     private $redirectUrl = '';
 
     // flags
-    private $_dataDriverSet = false;
+    private $_hasDataDriver = false;
     private $_hasAuth       = false;
     // }}}
     // {{{ Controller() [constructor]
@@ -122,7 +122,7 @@ class Controller {
         }
         $this->dataDriver['dsn'] = $ddriver;
         $this->dataDriver['interface'] = $interf;
-        $this->_dataDriverSet = true;
+        $this->_hasDataDriver = true;
     } //}}}
     // {{{ useAuth()
     /**
@@ -186,7 +186,7 @@ class Controller {
         /*
         * ModelManager
         */
-        if ($this->_dataDriverSet) {
+        if ($this->_hasDataDriver) {
             $this->setModelObj(FactoryModel::CreateByConfig($this->dataDriver));
         }
 
@@ -194,7 +194,7 @@ class Controller {
         * Auth
         */
         $this->authObj = null;
-        if (isset($this->authOpts) && is_array($this->authOpts) && $this->_dataDriverSet) {
+        if (isset($this->authOpts) && is_array($this->authOpts) && $this->_hasDataDriver) {
             $this->authOpts['sessionName'] = "Session_" . $this->projName;
 
             // Always prevent logs from ajax actions
@@ -283,9 +283,11 @@ class Controller {
         }
 
         // TODO: #5: Sharing data between Auth and Model.
-        $authDataArr = $this->authObj->getAuthData();
-        $authDataArr['usu_username'] = $this->authObj->getUsername();
-        $this->modelManager->receiveAuthData($authDataArr);
+        if ($this->_hasDataDriver && $this->_hasAuth) {
+            $authDataArr = $this->authObj->getAuthData();
+            $authDataArr['usu_username'] = $this->authObj->getUsername();
+            $this->modelManager->receiveAuthData($authDataArr);
+        }
 
         if ($this->modelManager && method_exists($this->modelManager, $actionFunc)) {
             $result = $this->modelManager->$actionFunc($this->actionParams);
@@ -403,6 +405,16 @@ class Controller {
             return true;
         }
         return false;
+    } // }}}
+    // {{{ getProjName()
+    /**
+     * Returns the name of the current project.
+     *
+     * @return string
+     */
+    public function getProjName()
+    {
+        return $this->projName;
     } // }}}
 }
 
