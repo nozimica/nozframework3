@@ -1,10 +1,10 @@
-<form method="post" action="{ACTION}">
+<form method="post" action="{{ ACTION }}">
  <fieldset style="display:block; margin: 0 auto; width: 300px;"><legend>Ingreso al sistema:</legend>
   <div style="color: #FF0000; margin: 0 auto 9px; text-align: center; width: 200px; font-weight: bold;">
-    {INGRESAR}
+    {{ LOGIN_MSG }}
   </div>
   <label for="username">Usuario: </label><input type="text" name="username" value="" />
-  <label for="password">Clave: </label><input type="text" name="password" value="" />
+  <label for="password">Clave: </label><input type="password" name="password" value="" />
   <label></label><input type="submit" value="Ingresar" />
  </fieldset>
 </form>

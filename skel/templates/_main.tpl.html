@@ -4,16 +4,21 @@
   <title></title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <meta http-equiv="Cache-Control" content="no-cache, mustrevalidate" />
-  <link rel="stylesheet" href="css/style.css" type="text/css" media="screen" />
-  {HEADLIBS}
+  <link rel="stylesheet" href="{{ PROJ_ROOT }}/css/estilos.css" type="text/css" media="screen" />
+  {% include '_htmlHeadLibs.tpl.html' %}
 </head>
 <body>
   <div id="centralColumn">
-    <div id="header">
+    <div id="header" class="clsCentral">
+      <div class="header-top"></div>
+      <div class="logo-site"> </div>
+      <div id="block-menu-primary-links" class="block block-menu">
+          {{ MENU }}
+      </div>
     </div>
-    <div id="mainContent">
-      {LOGINFORM}
-      {CONTENIDO}
+    <div id="mainContent" class="clsCentral">
+      {{ LOGINFORM }}
+      {{ CONTENIDO }}
     </div>
   </div>
 </body>

@@ -1,5 +1,5 @@
 <?php
-require_once 'Services/JSON.php';
+#require_once 'Services/JSON.php';
 
 class ActionsController extends Controller {
     public function __construct($pathConf, $verboseLevel) {
