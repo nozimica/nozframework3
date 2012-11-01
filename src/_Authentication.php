@@ -259,7 +259,7 @@ class OzAuthManager {
         $this->_setLogLevel($driverOpts['authLogLevel']);
         $this->_cookieParams = array('lifetime'  => 0
                                     , 'path'     => rtrim(dirname($_SERVER['PHP_SELF']), '/\\')
-                                    , 'domain'   => $_SERVER['HTTP_HOST']
+                                    , 'domain'   => $_SERVER['SERVER_NAME']
                                     , 'secure'   => false
                                     , 'httponly' => true);
         $this->_usingCookies = ini_get("session.use_cookies");
