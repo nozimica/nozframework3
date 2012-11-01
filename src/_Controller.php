@@ -3,7 +3,7 @@
 function _exportVar($var)
 {
     if ($_SERVER['REMOTE_ADDR'] == '172.17.71.170') {
-        //echo '<pre>'; var_export($var); echo '</pre>';
+        echo '<pre>'; var_export($var); echo '</pre>';
     }
 }
 
@@ -40,6 +40,7 @@ class Controller {
     // bootstrapper config
     private $indexFile = 'index.php';
     private $actionKey = 'accion';
+    private $redirectUrl = '';
 
     // flags
     private $_dataDriverSet = false;
@@ -65,6 +66,7 @@ class Controller {
         $this->outformats[$this->loginlogoutstart['logout']] = 'html';
         $this->names[$this->loginlogoutstart['login']]  = '';
         $this->names[$this->loginlogoutstart['logout']] = '';
+        $this->redirectUrl = $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
     } // }}}
     // {{{ Controller() [destructor]
     /**
@@ -211,16 +213,14 @@ class Controller {
                     $this->_logMessage("User '{$this->authObj->getUsername()}' logs out.");
                     $this->authObj->logout();
                 }
-                $host  = $_SERVER['HTTP_HOST'];
-                $uri   = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-                header("Location: http://$host$uri/{$this->indexFile}");
+                $this->redirectUrl = str_replace('logout', '', $this->redirectUrl);
+                header("Location: http://{$this->redirectUrl}");
                 exit();
             } else {
                 if ( ! $this->authObj->checkAuth()) {
                     if ( ! $this->authObj->tryLogin()) {
                         $this->afterLoginAction = $this->actionName;
                         $this->actionName = $this->loginlogoutstart['login'];
-                        _exportVar ($this->authObj->getStatus());
                         switch ($this->authObj->getStatus()) {
                           case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
@@ -234,9 +234,7 @@ class Controller {
                         }
                     } else {
                         // successfully logged in
-                        $host  = $_SERVER['HTTP_HOST'];
-                        $uri   = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-                        header("Location: http://$host$uri/{$this->indexFile}");
+                        header("Location: http://{$this->redirectUrl}");
                         exit();
                     }
                 }
@@ -266,7 +264,8 @@ class Controller {
         $actionFunc = $this->actionName . 'Action';
 
         if ($this->actionName == $this->loginlogoutstart['login']) {
-            $afterLogin = sprintf("%s?%s=%s", $this->indexFile, $this->actionKey, $this->afterLoginAction);
+            //$afterLogin = sprintf("%s?%s=%s", $this->indexFile, $this->actionKey, $this->afterLoginAction);
+            $afterLogin = "";
             $viewRetCode = $this->mainViewObj->nfw_loginAction($this->loginMessage, $afterLogin);
             if ( $viewRetCode == -1) {
                 $this->dieNow("Error en 'View'.");
