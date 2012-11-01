@@ -87,7 +87,8 @@ class HtmlView {
         $this->replacements = array();
         if (is_null($action)) {
             $this->templateObjTwig = $this->twigObj->loadTemplate("_main.tpl.html");
-            $this->setVariable('PROJ_ROOT', '/ViewerV4');
+            $baseDir = dirname($_SERVER['SCRIPT_NAME']);
+            $this->setVariable('PROJ_ROOT', $baseDir);
         } else {
             $this->templateObjTwig = $this->twigObj->loadTemplate("$action.tpl.html");
         }
