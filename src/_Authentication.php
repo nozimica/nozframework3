@@ -589,11 +589,11 @@ class OzAuthManager {
             $this->_session['challengekey'] = md5($username.microtime());
         }*/
 
-        $this->_updateChallengeCookies();
-
         $this->_session['username']   = $username;
         $this->_session['loginTimestamp'] = time();
         $this->_session['lastTimestamp']  = time();
+
+        $this->_updateChallengeCookies();
     } // }}}
     // {{{ getAuthData()
 
