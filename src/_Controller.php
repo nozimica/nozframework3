@@ -3,7 +3,7 @@
 function _exportVar($var)
 {
     if ($_SERVER['REMOTE_ADDR'] == '172.17.71.170') {
-        echo '<pre>'; var_export($var); echo '</pre>';
+        //echo '<pre>'; var_export($var); echo '</pre>';
     }
 }
 
@@ -39,7 +39,8 @@ class Controller {
 
     // bootstrapper config
     private $indexFile = 'index.php';
-    private $actionKey = 'accion';
+    private $actionKey = 'a'
+          , $paramKey  = 'p';
     private $redirectUrl = '';
 
     // flags
@@ -161,11 +162,20 @@ class Controller {
             $this->dieNow('There must be a start action.');
         }
 
-        if ($action == null) {
-            $action = (isset($_REQUEST[$this->actionKey])) ? $_REQUEST[$this->actionKey] : '';
-        }
-        if ($params == null) {
-            $params = (isset($_REQUEST['params'])) ? $_REQUEST['params'] : '';
+        if ( ! isset($_SERVER['REDIRECT_URL'])) {
+            if ($action == null) {
+                $action = (isset($_REQUEST[$this->actionKey])) ? $_REQUEST[$this->actionKey] : '';
+            }
+            if ($params == null) {
+                $params = (isset($_REQUEST[$this->paramKey])) ? $_REQUEST[$this->paramKey] : '';
+            }
+        } else {
+            $baseDir = dirname($_SERVER['SCRIPT_NAME']);
+            $requestUri = $_SERVER['REQUEST_URI'];
+            $requestToken = str_replace($baseDir, '', $requestUri);
+            preg_match('/\/([^\/]*)\/?(.*)/', $requestToken, $matches);
+            $action = $matches[1];
+            $params = $matches[2];
         }
 
         $this->actionName = trim(preg_replace("/[^A-Za-z0-9_-]/", "", $action));
@@ -234,8 +244,10 @@ class Controller {
                         }
                     } else {
                         // successfully logged in
-                        header("Location: http://{$this->redirectUrl}");
-                        exit();
+                        if ($this->outformats[$this->actionName] != 'ajax') {
+                            header("Location: http://{$this->redirectUrl}");
+                            exit();
+                        }
                     }
                 }
             }
@@ -289,19 +301,14 @@ class Controller {
             $this->modelManager->receiveAuthData($authDataArr);
         }
 
+        // Invokes model
         if ($this->modelManager && method_exists($this->modelManager, $actionFunc)) {
             $result = $this->modelManager->$actionFunc($this->actionParams);
         } else {
             $result = null;
         }
-        /** Failure from Model: let's see later if this is useful.
-        if ($this->modelManager->hasFailed()) {
-            list($accion, $params) = $this->modelManager->getActionAfterFailure();
-            $this->start($accion, $params);
-            $this->run();
-            return false;
-        }*/
 
+        // Invokes view
         if (method_exists($this->mainViewObj, $actionFunc)) {
             $viewRetCode = $this->mainViewObj->$actionFunc($result);
             if ( $viewRetCode == -1) {
@@ -415,6 +422,16 @@ class Controller {
     public function getProjName()
     {
         return $this->projName;
+    } // }}}
+    // {{{ getCurrentAcion()
+    /**
+     * Returns the name of the current action.
+     *
+     * @return string
+     */
+    public function getCurrentAcion()
+    {
+        return $this->actionName;
     } // }}}
 }
 
