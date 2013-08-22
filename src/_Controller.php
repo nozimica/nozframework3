@@ -423,13 +423,13 @@ class Controller {
     {
         return $this->projName;
     } // }}}
-    // {{{ getCurrentAcion()
+    // {{{ getCurrentAction()
     /**
      * Returns the name of the current action.
      *
      * @return string
      */
-    public function getCurrentAcion()
+    public function getCurrentAction()
     {
         return $this->actionName;
     } // }}}
