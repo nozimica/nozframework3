@@ -67,7 +67,12 @@ class Controller {
         $this->outformats[$this->loginlogoutstart['logout']] = 'html';
         $this->names[$this->loginlogoutstart['login']]  = '';
         $this->names[$this->loginlogoutstart['logout']] = '';
-        $this->redirectUrl = $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
+        if ($_SERVER['SERVER_PORT'] !== '80') {
+            $this->redirectUrl = $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
+        } else {
+            $this->redirectUrl = $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];         
+        }
+
     } // }}}
     // {{{ Controller() [destructor]
     /**
