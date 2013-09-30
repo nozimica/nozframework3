@@ -324,9 +324,14 @@ class OzAuthManager {
             $this->log('start() called.', AUTH_LOG_DEBUG);
 
             session_name($this->_sessionName);
-            session_set_cookie_params($this->_cookieParams['lifetime'], $this->_cookieParams['path']
-                                    , $this->_cookieParams['domain'], $this->_cookieParams['secure']
-                                    , $this->_cookieParams['httponly']);
+            if (version_compare(PHP_VERSION, '5.2.0') >= 0) {
+                session_set_cookie_params($this->_cookieParams['lifetime'], $this->_cookieParams['path']
+                                        , $this->_cookieParams['domain'], $this->_cookieParams['secure']
+                                        , $this->_cookieParams['httponly']);
+            } else {
+                session_set_cookie_params($this->_cookieParams['lifetime'], $this->_cookieParams['path']
+                                        , $this->_cookieParams['domain'], $this->_cookieParams['secure']);
+            }
             // Start the session
             if( "" === session_id()) {
                 @session_start() or die("Problem with session start");
@@ -736,11 +741,18 @@ class OzAuthManager {
     {
         if ($this->_usingCookies) {
             $expiry = ( ! is_null($cValue)) ? $this->_cookieParams['lifetime'] : (time() - 42000);
-            setcookie($cName, $cValue, $expiry
-              , $this->_cookieParams['path']
-              , $this->_cookieParams['domain']
-              , $this->_cookieParams['secure']
-              , $this->_cookieParams['httponly']);
+            if (version_compare(PHP_VERSION, '5.2.0') >= 0) {
+                setcookie($cName, $cValue, $expiry
+                  , $this->_cookieParams['path']
+                  , $this->_cookieParams['domain']
+                  , $this->_cookieParams['secure']
+                  , $this->_cookieParams['httponly']);
+            } else {
+                setcookie($cName, $cValue, $expiry
+                  , $this->_cookieParams['path']
+                  , $this->_cookieParams['domain']
+                  , $this->_cookieParams['secure']);
+            }
         }
     } // }}}
 }

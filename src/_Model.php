@@ -6,7 +6,9 @@ class FactoryModel {
         switch ($modelConf['interface']) {
           case 'PDO':
             $dbObj = new PDO($modelConf['dsn']) or die('PDO: Problem with DB.');
-            $dbObj->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
+            if (version_compare(PHP_VERSION, '5.2.0') >= 0) {
+                $dbObj->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC); 
+            }
             break;
           case 'PEAR::DB':
             require_once 'DB.php';
