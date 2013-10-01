@@ -61,16 +61,22 @@ class HtmlViewBase extends ViewBase implements iBasicView {
 
     public function nfw_loginAction($resultArr, $afterLogin)
     {
-        $this->contentView = new HtmlView('_ingresar');
-        $this->contentView->setVariable('LOGIN_MSG', $resultArr);
-        $this->contentView->setVariable('ACTION', $afterLogin);
-        $this->_completeParsing();
+        $this->buildPage('_ingresar', array('LOGIN_MSG' => $resultArr, 'ACTION' => $afterLogin));
     }
 
     public function nfw_dieWithMessage($msg)
     {
         $this->mainView->setVariable('CONTENIDO', $msg);
         $this->mainView->show();
+    }
+
+    public function buildPage($tplName, $varsArr)
+    {
+        $this->contentView = new HtmlView($tplName);
+        foreach ($varsArr as $varName => $varValue) {
+            $this->contentView->setVariable($varName, $varValue);
+        }
+        $this->_completeParsing();
     }
 }
 
