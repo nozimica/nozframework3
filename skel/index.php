@@ -1,7 +1,7 @@
 <?php
 error_reporting(E_ALL);
 
-$frameworkPath = '/home/mmh/opt/nozFramework3/src';
+$frameworkPath = '__FW_HOME__/src';
 set_include_path($frameworkPath . PATH_SEPARATOR . get_include_path());
 require_once '_Controller.php';
 
@@ -25,11 +25,12 @@ $authOptions = array(
     , 'db_fields'    => array('usu_email', 'usu_nombre')
 );
 
-$actionObj = new ActionsController('TestFW2012', '');
-//$actionObj->setDataDriver();
+$actionObj = new ActionsController('__PROJ_NAME__', '');
+
+$actionObj->setDataDriver(__DB_DSN__);
+
 //$actionObj->useAuth($authOptions);
+
 $actionObj->setAction('inicio'           , 'Inicio'              , 8+4, 'html-start');
-$actionObj->setAction('lista'            , 'Lista'               , 8+4, 'html');
-$actionObj->setAction('creaTrabajo'      , 'Crea trabajo'        , 8+4, 'ajax');
 
 $actionObj->startAll();
