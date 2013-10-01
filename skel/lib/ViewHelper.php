@@ -9,7 +9,7 @@ class AjaxViewBuilder extends AjaxViewBase {
 class HtmlViewBuilder extends HtmlViewBase {
     public function inicioAction($resultArr) {
         $this->contentView = new HtmlView('inicio');
-        $this->contentView->setVariable('START', 'Start');
+        $this->contentView->setVariable('START', $resultArr);
         $this->_completeParsing();
     }
 }

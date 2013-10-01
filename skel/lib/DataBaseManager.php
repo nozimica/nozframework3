@@ -9,7 +9,7 @@ class ModelManager extends Model {
     }
 
     public function inicioAction($params) {
-        return '';
+        return 'Installation complete.';
     }
 }
 
