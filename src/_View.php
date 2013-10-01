@@ -55,7 +55,9 @@ class HtmlViewBase extends ViewBase implements iBasicView {
         $this->mainView->show();
     }
 
-    public function nfw_printMessage($msg) { }
+    public function nfw_printMessage($msg) {
+        echo $msg;
+    }
 
     public function nfw_loginAction($resultArr, $afterLogin)
     {
