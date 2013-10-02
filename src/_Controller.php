@@ -169,7 +169,7 @@ class Controller {
             }
         } else {
             $baseDir = dirname($_SERVER['SCRIPT_NAME']);
-            $requestUri = $_SERVER['REQUEST_URI'];
+            $requestUri = $_SERVER['REDIRECT_URL'];
             $requestToken = str_replace($baseDir, '', $requestUri);
             preg_match('/\/([^\/]*)\/?(.*)/', $requestToken, $matches);
             $action = $matches[1];
