@@ -367,9 +367,6 @@ class OzAuthManager {
         /*if (!$this->checkAuth() && $this->mustLogin) {
             $this->tryLogin();
         }*/
-        _exportVar($_SESSION);
-        _exportVar($_COOKIE);
-        _exportVar(session_get_cookie_params());
     } // }}}
     // {{{ checkAuth()
 

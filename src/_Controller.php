@@ -1,12 +1,5 @@
 <?php
 
-function _exportVar($var)
-{
-    if ($_SERVER['REMOTE_ADDR'] == '172.17.71.170') {
-        //echo '<pre>'; var_export($var); echo '</pre>';
-    }
-}
-
 require_once '_Model.php';
 require_once '_View.php';
 require_once '_Authentication.php';
