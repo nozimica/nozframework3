@@ -205,8 +205,9 @@ class Controller {
         if (isset($this->authOpts) && is_array($this->authOpts) && $this->_hasDataDriver) {
             $this->authOpts['sessionName'] = "Session_" . $this->projName;
 
-            // Always prevent logs from ajax actions
-            if ($this->outformats[$this->actionName] == 'ajax') {
+            // Always prevent logs from ajax or json actions
+            if ( $this->outformats[$this->actionName] == 'ajax'
+              || $this->outformats[$this->actionName] == 'json') {
                 $this->authOpts['authLogLevel'] = "";
             }
 
@@ -242,7 +243,8 @@ class Controller {
                         }
                     } else {
                         // successfully logged in
-                        if ($this->outformats[$this->actionName] != 'ajax') {
+                        if ( $this->outformats[$this->actionName] != 'ajax'
+                          && $this->outformats[$this->actionName] != 'json') {
                             header("Location: http://{$this->redirectUrl}");
                             exit();
                         }

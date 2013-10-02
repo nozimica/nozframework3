@@ -10,6 +10,9 @@ class FactoryView {
         if ($outFormat == 'ajax') {
             return new AjaxViewBuilder();
         }
+        if ($outFormat == 'json') {
+            return new JsonViewBuilder();
+        }
         return null;
     }
 }
@@ -39,6 +42,13 @@ class AjaxViewBase extends ViewBase {
     public function show($msg)
     {
         echo $msg;
+    }
+}
+
+class JsonViewBase extends ViewBase {
+    public function show($msg)
+    {
+        echo json_encode($msg);
     }
 }
 
