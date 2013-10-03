@@ -1,6 +1,6 @@
 #<IfModule mod_rewrite.c>
     RewriteEngine on
-    RewriteBase /skel
+    RewriteBase /__APP_PATH__
 
     RewriteRule ^(index.php)$ index.php [L]
     RewriteRule ^templates.*$ index.php [L]
