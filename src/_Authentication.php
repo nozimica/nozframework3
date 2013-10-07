@@ -105,7 +105,7 @@ class OzAuthManager {
      * Storage object
      *
      * @var object
-     * @see Auth()
+     * @see OzAuthStorage
      */
     private $_storageObj;
 
@@ -244,8 +244,8 @@ class OzAuthManager {
      *
      * Sets up the Auth manager and its storage driver.
      *
-     * @param mixed     Additional options for the storage driver.
-     * @param object    Model object from user.
+     * @param  mixed  driverOpts    Additional options for the storage driver.
+     * @param  object modelObj      Model object from user.
      * @return void
      */
     public function __construct($driverOpts, $modelObj)
