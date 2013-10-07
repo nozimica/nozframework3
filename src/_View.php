@@ -4,17 +4,27 @@ Twig_Autoloader::register();
 
 class FactoryView {
     static public function CreateByOutFormat($outFormat) {
-        if ($outFormat == 'html' || $outFormat == 'html-in' || $outFormat == 'html-start') {
+        switch ($outFormat) {
+          case 'html':
+          case 'html-in':
+          case 'html-start':
             return new HtmlViewBuilder();
-        }
-        if ($outFormat == 'ajax') {
+          case 'ajax':
             return new AjaxViewBuilder();
-        }
-        if ($outFormat == 'json') {
+          case 'json':
             return new JsonViewBuilder();
         }
         return null;
     }
+}
+
+/**
+ * Interface to be used by the main view implementation, usually the HTML one.
+ */
+interface iBasicView {
+    public function nfw_printMessage($msg);
+    public function nfw_loginAction($res, $afterLogin);
+    public function nfw_dieWithMessage($msg);
 }
 
 /**
@@ -23,31 +33,19 @@ class FactoryView {
 class ViewBase {
     protected $controllerObj;
 
-    public function setControllerObj(Controller $obj)
-    {
+    public function setControllerObj(Controller $obj) {
         $this->controllerObj = $obj;
     }
 }
 
-/**
- * Interface to be used by the main view implementarion, usually the HTML one.
- */
-interface iBasicView {
-    public function nfw_printMessage($msg);
-    public function nfw_loginAction($res, $afterLogin);
-    public function nfw_dieWithMessage($msg);
-}
-
 class AjaxViewBase extends ViewBase {
-    public function show($msg)
-    {
+    public function show($msg) {
         echo $msg;
     }
 }
 
 class JsonViewBase extends ViewBase {
-    public function show($msg)
-    {
+    public function show($msg) {
         echo json_encode($msg);
     }
 }
@@ -69,19 +67,16 @@ class HtmlViewBase extends ViewBase implements iBasicView {
         echo $msg;
     }
 
-    public function nfw_loginAction($resultArr, $afterLogin)
-    {
+    public function nfw_loginAction($resultArr, $afterLogin) {
         $this->buildPage('_ingresar', array('LOGIN_MSG' => $resultArr, 'ACTION' => $afterLogin));
     }
 
-    public function nfw_dieWithMessage($msg)
-    {
+    public function nfw_dieWithMessage($msg) {
         $this->mainView->setVariable('CONTENIDO', $msg);
         $this->mainView->show();
     }
 
-    public function buildPage($tplName, $varsArr)
-    {
+    public function buildPage($tplName, $varsArr) {
         $this->contentView = new HtmlView($tplName);
         foreach ($varsArr as $varName => $varValue) {
             $this->contentView->setVariable($varName, $varValue);
