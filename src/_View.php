@@ -100,9 +100,6 @@ class HtmlView {
         $this->replacements = array();
         if (is_null($action)) {
             $this->templateObjTwig = $this->twigObj->loadTemplate("_main.tpl.html");
-            $baseDir = dirname($_SERVER['SCRIPT_NAME']);
-            if ($baseDir == '/')    $baseDir = '';
-            $this->setVariable('PROJ_ROOT', $baseDir);
         } else {
             $this->templateObjTwig = $this->twigObj->loadTemplate("$action.tpl.html");
         }
@@ -117,6 +114,9 @@ class HtmlView {
     }
 
     public function toHtml() {
+        $baseDir = dirname($_SERVER['SCRIPT_NAME']);
+        if ($baseDir == '/')    $baseDir = '';
+        $this->replacements['PROJ_ROOT'] =  $baseDir;
         return $this->templateObjTwig->render($this->replacements);
     }
 }
