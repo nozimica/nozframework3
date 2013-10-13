@@ -7,17 +7,24 @@ require_once '_Authentication.php';
 class Controller {
     // {{{ properties
     public $projName;
-    public $perms      = array();
-    public $names      = array();
-    public $outformats = array();
     public $messages   = array();
 
-    public $authObj;
-    public $modelManager = null;
-    public $mainViewObj;
+    /**
+     * Action properties.
+     *
+     * @var array
+     */
+    private $actionDefs = array();
 
-    public $actionName;
-    public $actionParams;
+    private $currActionCode;
+    private $currActionParams;
+    // Shortcut
+    private $currActionDefs = null;
+
+    public $authObj      = null;
+    public $modelManager = null;
+    public $mainViewObj  = null;
+
     public $afterLoginAction;
     // Default names for login/logout/start actions.
     public $loginlogoutstart  = array('login' => 'login', 'logout' => 'logout', 'start' => 'start');
@@ -58,8 +65,6 @@ class Controller {
         // Force needed features for login and logout
         $this->outformats[$this->loginlogoutstart['login']]  = 'html-in';
         $this->outformats[$this->loginlogoutstart['logout']] = 'html';
-        $this->names[$this->loginlogoutstart['login']]  = '';
-        $this->names[$this->loginlogoutstart['logout']] = '';
         if ($_SERVER['SERVER_PORT'] !== '80') {
             $this->redirectUrl = $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
         } else {
@@ -91,13 +96,19 @@ class Controller {
      * @param string       Action's output type.
      * @return void
      */
-    public function setAction($actCode, $actName, $actProfile, $actOutput)
+    public function setAction($actCode, $actName, $actProfile = 1, $actOutput = '')
     {
         if ($actCode == $this->loginlogoutstart['logout']) {
             $this->dieNow('Forbidden action name.');
         }
-        $this->perms[$actCode]      = ($actProfile != 0) ? $actProfile : 1;
-        $this->names[$actCode]      = $actName;
+        $actProfile = intval($actProfile);
+        $actOutput  = strval($actOutput);
+
+        $this->actionDefs[$actCode] = array(
+            'name' => $actName
+          , 'perm' => ($actProfile != 0) ? $actProfile : 1
+          , 'outf' => ($actOutput !== '') ? $actOutput : 'html'
+        );
         $this->outformats[$actCode] = (isset($actOutput)) ? $actOutput : 'html';
         //if ($this->outformats[$actCode] == 'html-in')    $this->loginlogoutstart['login'] = $actCode;
         //if ($this->outformats[$actCode] == 'html-out')   $this->loginlogoutstart['logout'] = $actCode;
@@ -176,19 +187,23 @@ class Controller {
             $params = $matches[2];
         }
 
-        $this->actionName = trim(preg_replace("/[^A-Za-z0-9_-]/", "", $action));
+        // sanitize action code.
+        $this->currActionCode = trim(preg_replace("/[^A-Za-z0-9_-]/", "", $action));
 
-        if (strlen($this->actionName) == 0) {
-            $this->actionName = $this->loginlogoutstart['start'];
+        if (strlen($this->currActionCode) == 0) {
+            $this->currActionCode = $this->loginlogoutstart['start'];
         }
-        $this->actionParams = trim($params);
+        $this->currActionParams = trim($params);
 
-        // not registered action
-        if (!in_array($this->actionName, array_keys($this->names))) {
+        // shortcuts
+        $this->currActionDefs = $this->actionDefs[$this->currActionCode];
+
+        // test if action is not registered, in which case start action is followed
+        if (!in_array($this->currActionCode, array_keys($this->actionDefs))) {
             if ($this->verboseLevel == 'v' || $this->verboseLevel == 'vv') {
-                $this->dieNow("There is no registered action called '{$this->actionName}'.");
+                $this->dieNow("There is no registered action called '{$this->currActionCode}'.");
             }
-            $this->actionName = $this->loginlogoutstart['start'];
+            $this->currActionCode = $this->loginlogoutstart['start'];
         }
 
         /*
@@ -206,8 +221,8 @@ class Controller {
             $this->authOpts['sessionName'] = "Session_" . $this->projName;
 
             // Always prevent logs from ajax or json actions
-            if ( $this->outformats[$this->actionName] == 'ajax'
-              || $this->outformats[$this->actionName] == 'json') {
+            if ( $this->outformats[$this->currActionCode] == 'ajax'
+              || $this->outformats[$this->currActionCode] == 'json') {
                 $this->authOpts['authLogLevel'] = "";
             }
 
@@ -217,7 +232,7 @@ class Controller {
 
             // Try to Auth user, and fix action names.
             // process logout
-            if ($this->actionName == $this->loginlogoutstart['logout']) {
+            if ($this->currActionCode == $this->loginlogoutstart['logout']) {
                 if ($this->authObj->checkAuth()) {
                     $this->_logMessage("User '{$this->authObj->getUsername()}' logs out.");
                     $this->authObj->logout();
@@ -228,8 +243,8 @@ class Controller {
             } else {
                 if ( ! $this->authObj->checkAuth()) {
                     if ( ! $this->authObj->tryLogin()) {
-                        $this->afterLoginAction = $this->actionName;
-                        $this->actionName = $this->loginlogoutstart['login'];
+                        $this->afterLoginAction = $this->currActionCode;
+                        $this->currActionCode = $this->loginlogoutstart['login'];
                         switch ($this->authObj->getStatus()) {
                           case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
@@ -243,8 +258,8 @@ class Controller {
                         }
                     } else {
                         // successfully logged in
-                        if ( $this->outformats[$this->actionName] != 'ajax'
-                          && $this->outformats[$this->actionName] != 'json') {
+                        if ( $this->outformats[$this->currActionCode] != 'ajax'
+                          && $this->outformats[$this->currActionCode] != 'json') {
                             header("Location: http://{$this->redirectUrl}");
                             exit();
                         }
@@ -253,16 +268,16 @@ class Controller {
             }
         } else {
             // Avoid nonsense
-            if ( $this->actionName == $this->loginlogoutstart['login']
-              || $this->actionName == $this->loginlogoutstart['logout']) {
-                $this->actionName = $this->loginlogoutstart['start'];
+            if ( $this->currActionCode == $this->loginlogoutstart['login']
+              || $this->currActionCode == $this->loginlogoutstart['logout']) {
+                $this->currActionCode = $this->loginlogoutstart['start'];
             }
         }
 
         /*
         * View
         */
-        $this->setViewObj(FactoryView::CreateByOutFormat($this->outformats[$this->actionName]));
+        $this->setViewObj(FactoryView::CreateByOutFormat($this->outformats[$this->currActionCode]));
     } // }}}
     // {{{ run()
     /**
@@ -272,10 +287,11 @@ class Controller {
      */
     public function run()
     {
-        $this->_logMessage("Executing action '{$this->actionName}'.");
-        $actionFunc = $this->actionName . 'Action';
+        $this->_logMessage("Executing action '{$this->currActionCode}'.");
+        $actionFunc = $this->currActionCode . 'Action';
 
-        if ($this->actionName == $this->loginlogoutstart['login']) {
+        #TODO!!
+        if ($this->currActionCode == $this->loginlogoutstart['login']) {
             //$afterLogin = sprintf("%s?%s=%s", $this->indexFile, $this->actionKey, $this->afterLoginAction);
             $afterLogin = "";
             $viewRetCode = $this->mainViewObj->nfw_loginAction($this->loginMessage, $afterLogin);
@@ -288,8 +304,8 @@ class Controller {
         // tries to execute non authorized action, even though user is authenticated.
         if ($this->_hasAuth) {
             $profile = $this->authObj->getProfile();
-            if ( ! ($this->_profileInAction($profile, $this->perms[$this->actionName]))) {
-                $this->mainViewObj->nfw_dieWithMessage("The module '{$this->actionName}' is not authorized for your profile ($profile).");
+            if ( ! ($this->_profileInAction($profile, $this->currActionDefs['perm']))) {
+                $this->mainViewObj->nfw_dieWithMessage("The module '{$this->currActionCode}' is not authorized for your profile ($profile).");
                 $this->dieNow('');
             }
         }
@@ -303,7 +319,7 @@ class Controller {
 
         // Invokes model
         if ($this->modelManager && method_exists($this->modelManager, $actionFunc)) {
-            $result = $this->modelManager->$actionFunc($this->actionParams);
+            $result = $this->modelManager->$actionFunc($this->currActionParams);
         } else {
             $result = null;
         }
@@ -314,8 +330,15 @@ class Controller {
             if ( $viewRetCode == -1) {
                 $this->dieNow("Error en 'View'.");
             }
+        } else if ( $this->outformats[$this->currActionCode] == 'ajax'
+                 || $this->outformats[$this->currActionCode] == 'json') {
+            // ajax and json views are not mandatory.
+            $viewRetCode = $this->mainViewObj->show($result);
+            if ( $viewRetCode == -1) {
+                $this->dieNow("Error en 'View'.");
+            }
         } else {
-            echo "View has no method for the current action '{$this->actionName}'.";
+            echo "View has no method for the current action '{$this->currActionCode}'.";
         }
     } //}}}
     // {{{ finish()
@@ -431,7 +454,7 @@ class Controller {
      */
     public function getCurrentAction()
     {
-        return $this->actionName;
+        return $this->currActionCode;
     } // }}}
 }
 
