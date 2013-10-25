@@ -46,6 +46,7 @@ class AjaxViewBase extends ViewBase {
 
 class JsonViewBase extends ViewBase {
     public function show($msg) {
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($msg);
     }
 }
