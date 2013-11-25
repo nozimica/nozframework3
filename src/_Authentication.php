@@ -68,8 +68,8 @@ define('AUTH_LOG_INFO',     6);
 define('AUTH_LOG_DEBUG',    7);
 // }}}
 
-/* {{{ Class FactoryAuth
- *
+/**
+ * FactoryAuth
  */
 class FactoryAuth {
     public static function CreateAuth($__authOpt, $modelObj) {
@@ -77,7 +77,6 @@ class FactoryAuth {
         return $auth;
     }
 }
-// }}}
 
 /**
  * OzAuthManager
@@ -91,9 +90,7 @@ class FactoryAuth {
  * @license    http://www.php.net/license/3_01.txt  PHP License 3.01
  */
 class OzAuthManager {
-
     // {{{ properties
-
     /**
      * Current authentication status
      *
@@ -237,7 +234,6 @@ class OzAuthManager {
     private $_cookieParams, $_usingCookies;
 
     // }}}
-    // {{{ OzAuthManager() [constructor]
 
     /**
      * Constructor
@@ -277,9 +273,8 @@ class OzAuthManager {
         $this->_authOpts = $driverOpts;
         $this->_modelObj = $modelObj;
 
-    } // }}}
+    }
 
-    // {{{ _sanitizeInput()
     /**
      * Ensures that the two input arrays have all the keys needed, and those undefined
      * by the caller get here their DEFAULT values.
@@ -306,11 +301,9 @@ class OzAuthManager {
             $driverOptsNew['authLogLevel'] = 'none';
         }
         $driverOpts = $driverOptsNew;
-    } // }}}
+    }
 
     /** Main methods */
-    // {{{ start()
-
     /**
      * Starts new auth session
      *
@@ -367,8 +360,7 @@ class OzAuthManager {
         /*if (!$this->checkAuth() && $this->mustLogin) {
             $this->tryLogin();
         }*/
-    } // }}}
-    // {{{ checkAuth()
+    }
 
     /**
      * Checks if there is a session with valid auth information.
@@ -461,8 +453,7 @@ class OzAuthManager {
         $this->log('Unable to locate session storage.', AUTH_LOG_DEBUG);
         $this->log('No login session.', AUTH_LOG_INFO);
         return false;
-    } // }}}
-    // {{{ tryLogin()
+    }
 
     /**
      * Attempts to validate current credentials.
@@ -502,8 +493,7 @@ class OzAuthManager {
             return $this->checkAuth();
         }
         return false;
-    } // }}}
-    // {{{ logout()
+    }
 
     /**
      * Logout
@@ -528,8 +518,7 @@ class OzAuthManager {
         $this->_setCookie('authchallenge', null);
         session_destroy();
 
-    } // }}}
-    // {{{ finish()
+    }
 
     /**
      * Finish
@@ -542,11 +531,9 @@ class OzAuthManager {
     public function finish()
     {
         $this->log('finish() called.', AUTH_LOG_DEBUG);
-    } // }}}
+    }
 
     /** Getters and setters */
-    // {{{ setAuth()
-
     /**
      * Register variable in a session telling that the user
      * has logged in successfully
@@ -596,8 +583,7 @@ class OzAuthManager {
         $this->_session['lastTimestamp']  = time();
 
         $this->_updateChallengeCookies();
-    } // }}}
-    // {{{ getAuthData()
+    }
 
     /**
      * Returns additional information that is stored in the session.
@@ -620,8 +606,7 @@ class OzAuthManager {
             }
         }
         return NULL;
-    } // }}}
-    // {{{ getUsername()
+    }
 
     /**
      * Returns the username
@@ -635,8 +620,7 @@ class OzAuthManager {
             return $this->_session['username'];
         }
         return '';
-    } // }}}
-    // {{{ getProfile()
+    }
 
     /**
      * Returns the user profile (if defined)
@@ -647,8 +631,7 @@ class OzAuthManager {
     public function getProfile()
     {
         return $this->getAuthData($this->profileFieldName);
-    } // }}}
-    // {{{ getStatus()
+    }
 
     /**
      * Returns the status of the current session.
@@ -659,8 +642,7 @@ class OzAuthManager {
     public function getStatus()
     {
         return $this->_status;
-    } // }}}
-    // {{{ _setLogLevel()
+    }
 
     /**
      * Sets the current log level.
@@ -685,11 +667,9 @@ class OzAuthManager {
             $this->logLevel = AUTH_LOG_NONE;
             break;
         }
-    } // }}}
+    }
 
     /** Misc */
-    // {{{ log()
-
     /**
      * Logs a message.
      *
@@ -706,8 +686,7 @@ class OzAuthManager {
         if ($this->logLevel >= $level) {
             echo "<br />** ({$levelNameArr[$level]}) $msg ** <br />";
         }
-    } // }}}
-    // {{{ _updateChallengeCookies()
+    }
 
     /**
      * Updates challengecookies.
@@ -722,9 +701,7 @@ class OzAuthManager {
         }
         $this->_session['challengecookie'] = md5($this->_session['username'].microtime());
         $this->_setCookie('authchallenge', $this->_session['challengecookie']);
-    } // }}}
-
-    // {{{ _setCookie()
+    }
 
     /**
      * Creates or updates a cookie.
@@ -751,7 +728,7 @@ class OzAuthManager {
                   , $this->_cookieParams['secure']);
             }
         }
-    } // }}}
+    }
 }
 
 class OzAuthStorage {
@@ -761,7 +738,6 @@ class OzAuthStorage {
     private $_querysArr;
     private $_checkedUserData = array();
     // }}}
-    // {{{ OzAuthStorage() [constructor]
 
     /**
      * Constructor
@@ -780,8 +756,8 @@ class OzAuthStorage {
         $this->_querysArr = array('check' => "SELECT $selectFields
                                               FROM {$this->_options['table']}
                                               WHERE {$this->_options['usernamecol']} = :user");
-    } // }}}
-    // {{{ checkCredentials()
+    }
+
     /**
      * @return boolean
      * @access public
@@ -802,8 +778,8 @@ class OzAuthStorage {
             return true;
         }
         return false;
-    } // }}}
-    // {{{ getAuthData()
+    }
+
     /**
      * @return array
      * @access public
@@ -811,8 +787,8 @@ class OzAuthStorage {
     public function getAuthData()
     {
         return (isset($this->_checkedUserData)) ? $this->_checkedUserData : array();
-    } // }}}
-    // {{{ _dbGetSelectFields()
+    }
+
     /**
      * @return string
      * @access private
@@ -841,7 +817,7 @@ class OzAuthStorage {
         }
 
         return implode(", ", $selectFieldsArr);
-    } // }}}
+    }
 }
 
-/* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4 foldmethod=marker: */
+/* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4: */

@@ -47,7 +47,7 @@ class Controller {
     private $_hasDataDriver = false;
     private $_hasAuth       = false;
     // }}}
-    // {{{ Controller() [constructor]
+
     /**
      * Constructor
      *
@@ -71,8 +71,8 @@ class Controller {
             $this->redirectUrl = $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];         
         }
 
-    } // }}}
-    // {{{ Controller() [destructor]
+    }
+
     /**
      * Destructor
      *
@@ -84,9 +84,8 @@ class Controller {
         if ($this->_hasAuth) {
             $this->authObj->finish();
         }
-    } // }}}
+    }
 
-    // {{{ setAction()
     /**
      * Defines a new action so that it gets properly managed by controller.
      *
@@ -113,8 +112,8 @@ class Controller {
         //if ($this->outformats[$actCode] == 'html-in')    $this->loginlogoutstart['login'] = $actCode;
         //if ($this->outformats[$actCode] == 'html-out')   $this->loginlogoutstart['logout'] = $actCode;
         if ($this->outformats[$actCode] == 'html-start') $this->loginlogoutstart['start'] = $actCode;
-    } //}}}
-    // {{{ setDataDriver()
+    }
+
     /**
      * Defines the way the FW gets all the data.
      *
@@ -133,8 +132,8 @@ class Controller {
         $this->dataDriver['dsn'] = $ddriver;
         $this->dataDriver['interface'] = $interf;
         $this->_hasDataDriver = true;
-    } //}}}
-    // {{{ useAuth()
+    }
+
     /**
      * Defines the way the FW performs auth.
      *
@@ -144,9 +143,8 @@ class Controller {
     public function useAuth($authConf)
     {
         $this->authOpts = $authConf;
-    } //}}}
+    }
 
-    // {{{ startAll()
     /**
      * Performs all the steps of the framework, one by one.
      *
@@ -157,8 +155,8 @@ class Controller {
         $this->start();
         $this->run();
         $this->finish();
-    } //}}}
-    // {{{ start()
+    }
+
     /**
      * Starts the framework actions.
      *
@@ -278,8 +276,8 @@ class Controller {
         * View
         */
         $this->setViewObj(FactoryView::CreateByOutFormat($this->outformats[$this->currActionCode]));
-    } // }}}
-    // {{{ run()
+    }
+
     /**
      * Runs framework.
      *
@@ -340,8 +338,8 @@ class Controller {
         } else {
             echo "View has no method for the current action '{$this->currActionCode}'.";
         }
-    } //}}}
-    // {{{ finish()
+    }
+
     /**
      * Performs final tasks for framework, if any.
      *
@@ -351,9 +349,8 @@ class Controller {
     public function finish()
     {
         $this->__destruct();
-    } // }}}
+    }
 
-    // {{{ setModelObj()
     /**
      * Sets the model object to be used.
      *
@@ -363,8 +360,8 @@ class Controller {
     protected function setModelObj(Model $obj)
     {
         $this->modelManager = $obj;
-    } // }}}
-    // {{{ setViewObj()
+    }
+
     /**
      * Sets the view object to be used.
      *
@@ -375,9 +372,8 @@ class Controller {
     {
         $this->mainViewObj = $obj;
         $this->mainViewObj->setControllerObj($this);
-    } // }}}
+    }
 
-    // {{{ dieNow()
     /**
      * Aborts framework execution. Calls finish() among others.
      *
@@ -389,9 +385,8 @@ class Controller {
         echo $msg;
         $this->finish();
         die();
-    } // }}}
+    }
 
-    // {{{ _logMessage()
     /**
      * Stores a message to be diplayed later.
      *
@@ -400,8 +395,8 @@ class Controller {
      */
     protected function _logMessage($msg) {
         $this->messages[] = $msg;
-    } // }}}
-    // {{{ printMessages()
+    }
+
     /**
      * Prints the stored messages, if the verbose levels allow that.
      *
@@ -413,9 +408,8 @@ class Controller {
                 $this->mainViewObj->nfw_printMessage($msg);
             }
         }
-    } // }}}
+    }
 
-    // {{{ _profileInAction()
     /**
      * Tells if the profile of the current user can run a requested action.
      *
@@ -435,8 +429,8 @@ class Controller {
             return true;
         }
         return false;
-    } // }}}
-    // {{{ getProjName()
+    }
+
     /**
      * Returns the name of the current project.
      *
@@ -445,8 +439,8 @@ class Controller {
     public function getProjName()
     {
         return $this->projName;
-    } // }}}
-    // {{{ getCurrentAction()
+    }
+
     /**
      * Returns the name of the current action.
      *
@@ -455,7 +449,7 @@ class Controller {
     public function getCurrentAction()
     {
         return $this->currActionCode;
-    } // }}}
+    }
 }
 
-/* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4 foldmethod=marker: */
+/* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4: */
