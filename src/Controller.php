@@ -1,10 +1,7 @@
 <?php
 
-// require_once '_Model.php';
-// require_once '_View.php';
-// require_once '_Authentication.php';
-
-class Controller {
+class Controller
+{
     // {{{ properties
     public $projName;
     public $messages   = array();
