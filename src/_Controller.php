@@ -178,8 +178,7 @@ class Controller {
             }
         } else {
             $baseDir = dirname($_SERVER['SCRIPT_NAME']);
-            $requestUri = $_SERVER['REDIRECT_URL'];
-            $requestToken = str_replace($baseDir, '', $requestUri);
+            $requestToken = str_replace($baseDir, '', $_SERVER['REDIRECT_URL']);
             preg_match('/\/([^\/]*)\/?(.*)/', $requestToken, $matches);
             $action = $matches[1];
             $params = $matches[2];
@@ -351,6 +350,7 @@ class Controller {
         $this->__destruct();
     }
 
+
     /**
      * Sets the model object to be used.
      *
@@ -393,7 +393,8 @@ class Controller {
      * @param string    Message to be stored.
      * @return void
      */
-    protected function _logMessage($msg) {
+    protected function _logMessage($msg)
+    {
         $this->messages[] = $msg;
     }
 
@@ -430,6 +431,7 @@ class Controller {
         }
         return false;
     }
+
 
     /**
      * Returns the name of the current project.
