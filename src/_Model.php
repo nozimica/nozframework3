@@ -11,21 +11,8 @@ class FactoryModel {
             }
             break;
           case 'PEAR::DB':
-            require_once 'DB.php';
-            $dbObj = DB::connect($modelConf['dsn']);
-            if (PEAR::isError($dbObj)) {
-                die('PEAR::DB: Error with DB.');
-            }
-            $dbObj->setFetchMode(DB_FETCHMODE_ASSOC);
-            break;
           case 'PEAR::MDB2':
-            require_once 'MDB2.php';
-            $dbObj = MDB2::connect($modelConf['dsn']);
-            if (PEAR::isError($dbObj)) {
-                die('PEAR::DB: Error with DB.');
-            }
-            $dbObj->setFetchMode(MDB2_FETCHMODE_ASSOC);
-            break;
+            die('PEAR classes no longer supported.');
         }
         return new ModelManager($dbObj);
     }
@@ -47,7 +34,6 @@ class Model {
 
     public function fetchAll($sql, $inputParams=null)
     {
-        // TODO: only for PDO by now
         $stm = $this->dataManager->prepare($sql);
         if ( ! $stm) {
             return false;
