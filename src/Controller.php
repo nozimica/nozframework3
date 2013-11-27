@@ -18,9 +18,10 @@ class Controller
     // Shortcut
     private $currActionDefs = null;
 
-    public $authObj      = null;
-    public $modelManager = null;
-    public $mainViewObj  = null;
+    public
+        $authObj      = null,
+        $modelManager = null,
+        $mainViewObj  = null;
 
     public $afterLoginAction;
     // Default names for login/logout/start actions.
@@ -36,13 +37,16 @@ class Controller
 
     // bootstrapper config
     private $indexFile = 'index.php';
-    private $actionKey = 'a'
-          , $paramKey  = 'p';
+    private
+        $actionKey = 'a',
+        $paramKey  = 'p';
     private $redirectUrl = '';
 
     // flags
-    private $_hasDataDriver = false;
-    private $_hasAuth       = false;
+    private
+        $_hasDataDriver   = false,
+        $_hasAuth         = false,
+        $_propagateParams = 'string';
     // }}}
 
     /**
@@ -188,6 +192,10 @@ class Controller
             $this->currActionCode = $this->loginlogoutstart['start'];
         }
         $this->currActionParams = trim($params);
+        if ($this->_propagateParams === 'array'
+          && (strpos($this->currActionParams, '/') !== false)) {
+            $this->currActionParams = explode('/', $this->currActionParams);
+        }
 
         // shortcuts
         $this->currActionDefs = $this->actionDefs[$this->currActionCode];
@@ -347,6 +355,19 @@ class Controller
         $this->__destruct();
     }
 
+
+    /**
+     * Sets the propagation of params as an array, if more than one has been given.
+     *
+     * After this call, every action receives an array with
+     * the parameters, exploding the slashes '/'.
+     *
+     * @return void
+     */
+    public function propagateParamsAsArrays()
+    {
+        $this->_propagateParams = 'array';
+    }
 
     /**
      * Sets the model object to be used.
