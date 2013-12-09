@@ -32,7 +32,7 @@ class Controller
     public $verboseLevel;
 
     // these come from configuration
-    public $dataDriver = array('dsn' => null, 'interface' => null);
+    public $dataDriver = array('dsn' => null, 'abl' => null);
     public $authOpts;
 
     // bootstrapper config
@@ -120,19 +120,19 @@ class Controller
      *
      * This must be a dsn if using a DataBase.
      *
-     * @param string       DSN if using DataBase.
-     * @param string       (Optional) Class to be used: PDO (default) or PEAR::DB or PEAR::MDB2.
+     * @param string       (Optional) DSN if using DataBase. Can be null or empty to emphasize not using DB.
+     * @param string       (Optional) DB abstraction layer to be used. If omitted, FactoryModel decides which one to use.
      * @return void
      */
-    public function setDataDriver($ddriver, $interf='PDO')
+    public function setDataDriver($ddriver = null, $abstractionLayer=null)
     {
-        $_avails = array('PDO', 'PEAR::DB', 'PEAR::MDB2');
-        if (! in_array($interf, $_avails)) {
-            $this->dieNow('Bad DB interface selected. Must be one among: [' . implode(', ', $_avails) . '].');
-        }
-        $this->dataDriver['dsn'] = $ddriver;
-        $this->dataDriver['interface'] = $interf;
         $this->_hasDataDriver = true;
+        if (!is_null($ddriver) && strlen($ddriver) > 0) {
+            $this->dataDriver['dsn'] = $ddriver;
+            if (is_string($abstractionLayer) && strlen($abstractionLayer) > 0) {
+                $this->dataDriver['abl'] = $abstractionLayer;
+            }
+        }
     }
 
     /**
@@ -212,7 +212,7 @@ class Controller
         * ModelManager
         */
         if ($this->_hasDataDriver) {
-            $this->setModelObj(FactoryModel::CreateByConfig($this->dataDriver));
+            $this->setModelObj(FactoryModel::CreateByConfig($this->dataDriver['dsn'], $this->dataDriver['abl']));
         }
 
         /*
