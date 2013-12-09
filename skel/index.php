@@ -6,7 +6,7 @@ set_include_path($frameworkPath . PATH_SEPARATOR . get_include_path());
 require_once '_Controller.php';
 
 require_once 'lib/ActionsController.php';
-require_once 'lib/DataBaseManager.php';
+require_once 'lib/ModelManager.php';
 require_once 'lib/ViewHelper.php';
 
 # Authentication:
