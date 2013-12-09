@@ -28,9 +28,8 @@ $authOptions = array(
 $actionObj = new ActionsController('__PROJ_NAME__', '');
 
 $actionObj->setDataDriver(__DB_DSN__);
-
 //$actionObj->useAuth($authOptions);
 
-$actionObj->setAction('inicio'           , 'Inicio'              , 8+4, 'html-start');
+$actionObj->setAction('inicio', 'Inicio', 8+4, 'html-start');
 
 $actionObj->startAll();
