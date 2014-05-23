@@ -9,12 +9,23 @@ class Controller
     /**
      * Action properties.
      *
+     * These properties are gathered from every call to setAction.
+     *
      * @var array
      */
     private $actionDefs = array();
 
+    /**
+     * specialActDefs
+     *
+     * Default names for login/logout/start actions.
+     * @var array
+     */
+    private $specialActDefs  = array('login' => 'login', 'logout' => 'logout', 'start' => 'start');
+
     private $currActionCode;
     private $currActionParams;
+
     // Shortcut
     private $currActionDefs = null;
 
@@ -23,9 +34,6 @@ class Controller
         $modelManager = null,
         $mainViewObj  = null;
 
-    public $afterLoginAction;
-    // Default names for login/logout/start actions.
-    public $loginlogoutstart  = array('login' => 'login', 'logout' => 'logout', 'start' => 'start');
     private $loginMessage = '';
 
     // q.- Quiet, v.- Verbose, vv.- Very Verbose.
@@ -63,15 +71,11 @@ class Controller
         if ( ! isset($_SERVER['SERVER_NAME']))    $_SERVER['SERVER_NAME'] = 'localhost';
         $this->projName     = $projName;
         $this->verboseLevel = $verboseLevel;
-        // Force needed features for login and logout
-        $this->outformats[$this->loginlogoutstart['login']]  = 'html-in';
-        $this->outformats[$this->loginlogoutstart['logout']] = 'html';
         if ($_SERVER['SERVER_PORT'] !== '80') {
             $this->redirectUrl = $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
         } else {
             $this->redirectUrl = $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];         
         }
-
     }
 
     /**
@@ -81,10 +85,7 @@ class Controller
      */
     public function __destruct()
     {
-        $this->printMessages();
-        if ($this->_hasAuth) {
-            $this->authObj->finish();
-        }
+        $this->finish();
     }
 
     /**
@@ -92,27 +93,41 @@ class Controller
      *
      * @param string       Action's code.
      * @param string       Action's name.
-     * @param string       Action's profile.
+     * @param integer      Action's profile.
      * @param string       Action's output type.
      * @return void
      */
-    public function setAction($actCode, $actName, $actProfile = 1, $actOutput = '')
+    public function setAction($actCode, $actName, $actProfile = 1, $actOutput = 'html')
     {
-        if ($actCode == $this->loginlogoutstart['logout']) {
+        // Cannot define from outside an action called logout, even if it's html-out.
+        if ($actCode == $this->specialActDefs['logout']) {
             $this->dieNow('Forbidden action name.');
         }
         $actProfile = intval($actProfile);
-        $actOutput  = strval($actOutput);
+        $actProfile = ($actProfile != 0) ? $actProfile : 1;
+        $actOutput = preg_replace("/[^A-Za-z-.]/", "", strval($actOutput));
+        if ($actOutput === false || strlen($actOutput) == 0) {
+            $this->dieNow('Invalid output type.');
+        }
 
         $this->actionDefs[$actCode] = array(
             'name' => $actName
-          , 'perm' => ($actProfile != 0) ? $actProfile : 1
-          , 'outf' => ($actOutput !== '') ? $actOutput : 'html'
+          , 'perm' => $actProfile
+          , 'outf' => $actOutput
         );
-        $this->outformats[$actCode] = (isset($actOutput)) ? $actOutput : 'html';
-        //if ($this->outformats[$actCode] == 'html-in')    $this->loginlogoutstart['login'] = $actCode;
-        //if ($this->outformats[$actCode] == 'html-out')   $this->loginlogoutstart['logout'] = $actCode;
-        if ($this->outformats[$actCode] == 'html-start') $this->loginlogoutstart['start'] = $actCode;
+
+        switch ($actOutput) {
+        case 'html-in':
+            $this->specialActDefs['login'] = $actCode;
+            break;
+        case 'html-out':
+            $this->specialActDefs['logout'] = $actCode;
+            break;
+        case 'html-start':
+            // if overriding start action
+            $this->specialActDefs['start'] = $actCode;
+            break;
+        }
     }
 
     /**
@@ -166,10 +181,6 @@ class Controller
      * @return void
      */
     public function start($action=null, $params=null) {
-        if (strlen($this->loginlogoutstart['start']) == 0) {
-            $this->dieNow('There must be a start action.');
-        }
-
         if ( ! isset($_SERVER['REDIRECT_URL'])) {
             if ($action == null) {
                 $action = (isset($_REQUEST[$this->actionKey])) ? $_REQUEST[$this->actionKey] : '';
@@ -189,24 +200,23 @@ class Controller
         $this->currActionCode = trim(preg_replace("/[^A-Za-z0-9_-]/", "", $action));
 
         if (strlen($this->currActionCode) == 0) {
-            $this->currActionCode = $this->loginlogoutstart['start'];
+            $this->currActionCode = $this->specialActDefs['start'];
         }
-        $this->currActionParams = trim($params);
-        if ($this->_propagateParams === 'array'
-          && (strpos($this->currActionParams, '/') !== false)) {
+
+        // test if action is not registered, in which case start action is followed
+        if (!in_array($this->currActionCode, array_keys($this->actionDefs))) {
+            $this->_logMessage("There is no registered action called '{$this->currActionCode}'.");
+            $this->currActionCode = $this->specialActDefs['start'];
+        }
+
+        $this->currActionParams = trim($params, " /\t\n\r\0\x0B");
+        if ($this->_propagateParams === 'array') {
+          //&& (strpos($this->currActionParams, '/') !== false)) {
             $this->currActionParams = explode('/', $this->currActionParams);
         }
 
         // shortcuts
         $this->currActionDefs = $this->actionDefs[$this->currActionCode];
-
-        // test if action is not registered, in which case start action is followed
-        if (!in_array($this->currActionCode, array_keys($this->actionDefs))) {
-            if ($this->verboseLevel == 'v' || $this->verboseLevel == 'vv') {
-                $this->dieNow("There is no registered action called '{$this->currActionCode}'.");
-            }
-            $this->currActionCode = $this->loginlogoutstart['start'];
-        }
 
         /*
         * ModelManager
@@ -219,12 +229,13 @@ class Controller
         * Auth
         */
         $this->authObj = null;
-        if (isset($this->authOpts) && is_array($this->authOpts) && $this->_hasDataDriver) {
+        if ( isset($this->authOpts) && is_array($this->authOpts) && $this->_hasDataDriver
+            // TODO: leave auth if action has visitor profile:
+          && $this->currActionDefs['perm'] > 1) {
             $this->authOpts['sessionName'] = "Session_" . $this->projName;
 
             // Always prevent logs from ajax or json actions
-            if ( $this->outformats[$this->currActionCode] == 'ajax'
-              || $this->outformats[$this->currActionCode] == 'json') {
+            if ($this->_isAjax()) {
                 $this->authOpts['authLogLevel'] = "";
             }
 
@@ -234,7 +245,7 @@ class Controller
 
             // Try to Auth user, and fix action names.
             // process logout
-            if ($this->currActionCode == $this->loginlogoutstart['logout']) {
+            if ($this->currActionCode == $this->specialActDefs['logout']) {
                 if ($this->authObj->checkAuth()) {
                     $this->_logMessage("User '{$this->authObj->getUsername()}' logs out.");
                     $this->authObj->logout();
@@ -245,8 +256,7 @@ class Controller
             } else {
                 if ( ! $this->authObj->checkAuth()) {
                     if ( ! $this->authObj->tryLogin()) {
-                        $this->afterLoginAction = $this->currActionCode;
-                        $this->currActionCode = $this->loginlogoutstart['login'];
+                        $this->currActionCode = $this->specialActDefs['login'];
                         switch ($this->authObj->getStatus()) {
                           case AUTH_STATUS_WRONG_LOGIN:
                             $this->loginMessage = 'Login failed.';
@@ -260,8 +270,7 @@ class Controller
                         }
                     } else {
                         // successfully logged in
-                        if ( $this->outformats[$this->currActionCode] != 'ajax'
-                          && $this->outformats[$this->currActionCode] != 'json') {
+                        if ($this->_isAjax()) {
                             header("Location: http://{$this->redirectUrl}");
                             exit();
                         }
@@ -269,17 +278,17 @@ class Controller
                 }
             }
         } else {
-            // Avoid nonsense
-            if ( $this->currActionCode == $this->loginlogoutstart['login']
-              || $this->currActionCode == $this->loginlogoutstart['logout']) {
-                $this->currActionCode = $this->loginlogoutstart['start'];
+            // Avoid nonsense: no auth at all, but there's a login or logout.
+            if ( $this->currActionCode == $this->specialActDefs['login']
+              || $this->currActionCode == $this->specialActDefs['logout']) {
+                $this->currActionCode = $this->specialActDefs['start'];
             }
         }
 
         /*
         * View
         */
-        $this->setViewObj(FactoryView::CreateByOutFormat($this->outformats[$this->currActionCode]));
+        $this->setViewObj(FactoryView::CreateByOutFormat($this->currActionDefs['outf']));
     }
 
     /**
@@ -290,18 +299,13 @@ class Controller
     public function run()
     {
         $this->_logMessage("Executing action '{$this->currActionCode}'.");
-        $actionFunc = $this->currActionCode . 'Action';
 
-        #TODO!!
-        if ($this->currActionCode == $this->loginlogoutstart['login']) {
-            //$afterLogin = sprintf("%s?%s=%s", $this->indexFile, $this->actionKey, $this->afterLoginAction);
-            $afterLogin = "";
-            $viewRetCode = $this->mainViewObj->nfw_loginAction($this->loginMessage, $afterLogin);
-            if ( $viewRetCode == -1) {
-                $this->dieNow("Error en 'View'.");
-            }
+        if ($this->currActionCode == $this->specialActDefs['login']) {
+            $this->mainViewObj->nfw_loginAction($this->loginMessage);
             return;
         }
+
+        $actionFunc = $this->currActionCode . 'Action';
 
         // tries to execute non authorized action, even though user is authenticated.
         if ($this->_hasAuth) {
@@ -332,8 +336,7 @@ class Controller
             if ( $viewRetCode == -1) {
                 $this->dieNow("Error en 'View'.");
             }
-        } else if ( $this->outformats[$this->currActionCode] == 'ajax'
-                 || $this->outformats[$this->currActionCode] == 'json') {
+        } else if ($this->_isAjax()) {
             // ajax and json views are not mandatory.
             $viewRetCode = $this->mainViewObj->show($result);
             if ( $viewRetCode == -1) {
@@ -352,7 +355,14 @@ class Controller
      */
     public function finish()
     {
-        $this->__destruct();
+        static $finishCalled = 0;
+        if ($finishCalled === 0) {
+            $this->printMessages();
+            if ($this->_hasAuth) {
+                $this->authObj->finish();
+            }
+        }
+        $finishCalled++;
     }
 
 
@@ -417,7 +427,7 @@ class Controller
     }
 
     /**
-     * Prints the stored messages, if the verbose levels allow that.
+     * Prints the stored messages, if the current verbose level allows that.
      *
      * @return void
      */
@@ -433,7 +443,7 @@ class Controller
      * Tells if the profile of the current user can run a requested action.
      *
      * @param integer    Profile of the current user.
-     * @param string     Action being requested.
+     * @param integer    Action's permission being requested (sum of powers of 2).
      * @return boolean
      */
     private function _profileInAction($profile, $action) {
@@ -445,6 +455,22 @@ class Controller
         }
         $reverseBinary = strrev(decbin($action));
         if (isset($reverseBinary[($profile-1)]) && $reverseBinary[($profile-1)] == 1) {
+            return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * _isAjax
+     *
+     * Tells if the current action is of ajax type (ajax | json).
+     *
+     * @return boolean
+     */
+    private function _isAjax() {
+        if ( $this->currActionDefs['outf'] == 'ajax'
+          || $this->currActionDefs['outf'] == 'json') {
             return true;
         }
         return false;
