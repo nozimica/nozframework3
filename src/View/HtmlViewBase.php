@@ -16,14 +16,31 @@ class HtmlViewBase extends ViewBase implements iBasicView
         $this->mainView->show();
     }
 
+    /**
+     * nfw_printMessage
+     *
+     * Function that just prints a message. To be overriden by app implementation.
+     *
+     * @param string $msg
+     * @return void
+     */
     public function nfw_printMessage($msg)
     {
         echo $msg;
     }
 
-    public function nfw_loginAction($resultArr, $afterLogin)
+    /**
+     * nfw_loginAction
+     *
+     * Calls buildPage to generate the login form page.
+     *
+     * @param string $loginMsg    Message to be displayed along with login.
+     * @param string $afterLogin  Action to be performed after login is successful.
+     * @return void
+     */
+    public function nfw_loginAction($loginMsg, $afterLogin = '')
     {
-        $this->buildPage('_ingresar', array('LOGIN_MSG' => $resultArr, 'ACTION' => $afterLogin));
+        $this->buildPage('_login', array('LOGIN_MSG' => $loginMsg, 'ACTION' => $afterLogin));
     }
 
     public function nfw_dieWithMessage($msg)
