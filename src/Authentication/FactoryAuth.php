@@ -279,6 +279,8 @@ class OzAuthManager {
      * Ensures that the two input arrays have all the keys needed, and those undefined
      * by the caller get here their DEFAULT values.
      *
+     * This method is able to use both the old and new definition of auth db data.
+     *
      * @param  array   Reference to the driver options array.
      * @return void
      * @access private
@@ -295,10 +297,29 @@ class OzAuthManager {
               , 'postUsername' => 'username'
               , 'postPassword' => 'password')
             , $driverOpts);
+
         // Check restricted variables
         $driverOptsNew['authLogLevel'] = strtolower($driverOptsNew['authLogLevel']);
         if ( ! in_array($driverOptsNew['authLogLevel'], array('none', 'info', 'debug'))) {
             $driverOptsNew['authLogLevel'] = 'none';
+        }
+        // Check alternative postFields definition
+        if (isset($driverOpts['postFields']) && strpos($driverOpts['postFields'], ':') !== false) {
+            $postFields = explode(':', $driverOpts['postFields']);
+            $driverOptsNew['postUsername'] = trim($postFields[0]);
+            $driverOptsNew['postPassword'] = trim($postFields[1]);
+        }
+        // Check alternative authFields definition
+        if (isset($driverOpts['authFields'])) {
+            preg_match('/([a-zA-Z]+)\(([_a-zA-Z]+),([_a-zA-Z]+)(?:,([,_a-zA-Z]*)|)\)/', $driverOpts['authFields'], $matches);
+            if (count($matches) >= 4) {
+                $driverOptsNew['table'] = trim($matches[1]);
+                $driverOptsNew['usernamecol'] = trim($matches[2]);
+                $driverOptsNew['passwordcol'] = trim($matches[3]);
+                if (isset($matches[4])) {
+                    $driverOptsNew['db_fields'] = explode(',', trim($matches[4]));
+                }
+            }
         }
         $driverOpts = $driverOptsNew;
     }
@@ -449,6 +470,8 @@ class OzAuthManager {
                 $this->log('Session OK.', AUTH_LOG_INFO);
                 return true;
             }
+        } else {
+            $this->log('checkAuth(): no reference to session has been found.', AUTH_LOG_DEBUG);
         }
         $this->log('Unable to locate session storage.', AUTH_LOG_DEBUG);
         $this->log('No login session.', AUTH_LOG_INFO);
